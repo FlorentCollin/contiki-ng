@@ -1,0 +1,31 @@
+#!/bin/zsh
+contiki=`kitty @ launch --keep-focus zsh`
+containerLaunched=`docker ps --filter name="contiki-container" -q`
+if [ -z "$containerLaunched" ]
+then
+    kitty @ send-text --match id:$contiki "contiker\n"
+else
+    kitty @ send-text --match id:$contiki "docker exec -it contiki-container bash\n"
+fi
+kitty @ send-text --match id:$contiki "cd tools/cooja\n"
+#kitty @ send-text --match id:$contiki "ant jar\n"       
+kitty @ send-text --match id:$contiki "cd dist\n"
+kitty @ send-text --match id:$contiki "java -Dsun.java2d.uiScale=2 -jar cooja.jar -quickstart=/home/user/contiki-ng/project/proxy/simulation.csc\n"
+
+connect=`kitty @ launch --keep-focus zsh`
+kitty @ send-text --match id:$connect "docker exec -it contiki-container bash\n"
+kitty @ send-text --match id:$connect "cd project/proxy\n"
+kitty @ send-text --match id:$connect "until make TARGET=cooja connect-router-cooja; do echo 'Trying again in 2 sec'; sleep 2; done;\n"
+
+coap=`kitty @ launch --keep-focus zsh`
+kitty @ send-text --match id:$coap "cd ~/dev/contiki-ng/project/server\n"
+kitty @ send-text --match id:$coap "go run main.go\n"
+
+echo "Press a key to close all windows"
+read
+kitty @ send-text --match id:$contiki "\u0003\n"
+kitty @ send-text --match id:$connect "\u0003\n"
+kitty @ send-text --match id:$coap "\u0003\n"
+kitty @ close-window --match id:$contiki 
+kitty @ close-window --match id:$connect 
+kitty @ close-window --match id:$coap 

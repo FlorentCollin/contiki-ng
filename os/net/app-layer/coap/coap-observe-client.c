@@ -264,9 +264,9 @@ handle_obs_registration_response(void *data, coap_message_t *response)
   if(notification_callback) {
     notification_callback(obs, response, flag);
   }
-  if(flag != OBSERVE_OK) {
-    coap_obs_remove_observee(obs);
-  }
+  /*if(flag != OBSERVE_OK) {*/
+    /*coap_obs_remove_observee(obs);*/
+  /*}*/
 }
 /*----------------------------------------------------------------------------*/
 uint8_t
