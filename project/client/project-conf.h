@@ -76,6 +76,7 @@
 #define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_INFO
+#define LOG_LEVEL_APP                              LOG_LEVEL_DBG
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
 /* Enable client-side support for COAP observe */

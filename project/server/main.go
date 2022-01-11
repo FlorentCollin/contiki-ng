@@ -1,139 +1,100 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
+	"coap-server/scheduleupdater"
 	"fmt"
-	"io"
 	"log"
+	"net"
 	"time"
 
 	"github.com/plgd-dev/go-coap/v2"
-	"github.com/plgd-dev/go-coap/v2/message"
 	"github.com/plgd-dev/go-coap/v2/message/codes"
 	"github.com/plgd-dev/go-coap/v2/mux"
 )
 
-type CellID struct {
-	LinkOptions uint8
-	TimeSlot    uint16
-	Channel     uint16
-}
-
-type ScheduleUpdaterPkt struct {
-	NeighborAddr [4]uint16
-	CellIDsLen   uint8
-	CellIDs      []CellID
-}
-
-func writeOrPanic(w io.Writer, order binary.ByteOrder, data interface{}) {
-	err := binary.Write(w, order, data)
-	if err != nil {
-		log.Panicf("Error while writing to the binary buffer : %v", err)
-	}
-}
-
-func (pkt *ScheduleUpdaterPkt) Encode(buffer *bytes.Buffer) {
-	writeOrPanic(buffer, binary.LittleEndian, [8]uint8{1, 2, 3, 4, 5, 6, 7, 8})
-	writeOrPanic(buffer, binary.LittleEndian, pkt.CellIDsLen)
-	for i := 0; uint8(i) < pkt.CellIDsLen; i++ {
-		writeOrPanic(buffer, binary.LittleEndian, pkt.CellIDs[i].LinkOptions)
-		writeOrPanic(buffer, binary.LittleEndian, pkt.CellIDs[i].TimeSlot)
-		writeOrPanic(buffer, binary.LittleEndian, pkt.CellIDs[i].Channel)
-	}
-}
+const nClients = 2;
 
 func loggingMiddleware(next mux.Handler) mux.Handler {
 	return mux.HandlerFunc(func(w mux.ResponseWriter, r *mux.Message) {
-		log.Printf("Got a message path=%v: %+v from %v\n", getPath(r.Options), r, w.Client().RemoteAddr())
+		path, err := r.Options.Path()
+		if err != nil {
+			log.Printf("Error while retrieving the path in the options: %+v", err)
+		} else {
+			log.Printf("Got a message path=%v: %+v from %v\n", path, r, w.Client().RemoteAddr())
+		}
 		next.ServeCOAP(w, r)
 	})
 }
 
-func getPath(opts message.Options) string {
-	path, err := opts.Path()
-	if err != nil {
-		log.Printf("cannot get path: %v", err)
-		return ""
-	}
-	return path
+func addCell(s *scheduleupdater.Schedule, addr net.Addr, timeslot uint16, channel uint16) {
+    neighborAddr := [4]uint16{0xf80, 0x202, 0x2, 0x2}
+	s.AddCell(addr,
+		neighborAddr,
+		&scheduleupdater.Cell{
+			LinkOptions: 1,
+			TimeSlot:    timeslot,
+			Channel:     channel,
+		})
 }
 
-func periodicTransmitter(cc mux.Client, token []byte) {
-	for obs := int64(2); ; obs++ {
-		pkt := ScheduleUpdaterPkt{
-			NeighborAddr: [4]uint16{0, 0, 0, 0},
-			CellIDsLen:   1,
-			CellIDs: []CellID{
-				{LinkOptions: 2, TimeSlot: 4, Channel: 5},
-			},
-		}
-		buffer := new(bytes.Buffer)
-		pkt.Encode(buffer)
-
-		err := sendResponse(cc, token, obs, buffer.Bytes())
-		if err != nil {
-			log.Panic("Error in transmitter, stopping: %v", err)
-			return
-		}
-		time.Sleep(time.Second)
+func periodicSend(scheduleUpdater *scheduleupdater.Updater, schedule *scheduleupdater.Schedule) {
+	for {
+		go scheduleUpdater.UpdateClients(schedule)
+		time.Sleep(5 * time.Second)
 	}
 }
 
-func sendResponse(cc mux.Client, token []byte, obs int64, messageBody []byte) error {
-	m := message.Message{
-		Code:    codes.Content,
-		Token:   token,
-		Context: cc.Context(),
-		Body:    bytes.NewReader(messageBody),
-	}
-	var opts message.Options
-	var buf []byte
-	opts, n, err := opts.SetContentFormat(buf, message.TextPlain)
-	if err == message.ErrTooSmall {
-		buf = append(buf, make([]byte, n)...)
-		opts, n, err = opts.SetContentFormat(buf, message.TextPlain)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot set content format to response: %w", err)
-	}
-	if obs >= 0 {
-		opts, n, err = opts.SetObserve(buf, uint32(obs))
-		if err == message.ErrTooSmall {
-			buf = append(buf, make([]byte, n)...)
-			opts, n, err = opts.SetObserve(buf, uint32(obs))
-		}
-		if err != nil {
-			return fmt.Errorf("cannot set options to response: %w", err)
+func initializeSchedule(clientCount uint) scheduleupdater.Schedule {
+	schedule := scheduleupdater.NewSchedule()
+	addrs := make([]*net.UDPAddr, clientCount)
+	for i := uint(2); i < clientCount+2; i++ {
+		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
+		addrs[i-2] = &net.UDPAddr{
+			IP:   net.ParseIP(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i)),
+			Port: 5683,
+			Zone: "",
 		}
 	}
-	m.Options = opts
-	log.Printf("Message: %+v\n", m)
-	log.Printf("messageBody: %s", messageBody)
-	return cc.WriteMessage(&m)
-}
-
-func handleSchedule(w mux.ResponseWriter, r *mux.Message) {
-	obs, err := r.Options.Observe()
-	log.Printf("Message %+v\n", r)
-	log.Printf("obs %+v\n", obs)
-	if err != nil {
-		log.Panicf("Error while retrieving observer options %v\n", err)
+	log.Println("Number of clients: ", clientCount)
+	for i := uint16(1); i < 2; i++ {
+		for _, addr := range addrs {
+			addCell(&schedule, addr, i, i+1)
+		}
 	}
-	if r.Code == codes.GET && err == nil && obs == 0 {
-		log.Println("Start sending periodic message")
-		go periodicTransmitter(w.Client(), r.Token)
-	}
+	log.Println("Schedule len : ", len(schedule))
+	return schedule
 }
 
 func main() {
+	log.SetFlags(log.Ltime | log.Lshortfile)
+	scheduleUpdater := scheduleupdater.NewUpdaterState()
+	schedule := initializeSchedule(nClients)
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware)
-	err := r.Handle("/schedule", mux.HandlerFunc(handleSchedule))
+	clientCount := 0
+	err := r.Handle("/schedule", mux.HandlerFunc(func(w mux.ResponseWriter, r *mux.Message) {
+		// Handle the schedule
+		obs, err := r.Options.Observe()
+		log.Printf("Message %+v\n", r)
+		log.Printf("obs %+v\n", obs)
+		if err != nil {
+			log.Panicf("Error while retrieving observer options %v\n", err)
+		}
+		if r.Code == codes.GET && err == nil && obs == 0 {
+			log.Println("Adding new client ! ", w.Client().RemoteAddr())
+			scheduleUpdater.AddClient(w.Client(), r.Token)
+			clientCount++
+			if clientCount >= len(schedule) {
+				go scheduleUpdater.UpdateClients(&schedule)
+			}
+		}
+	}))
+
 	if err != nil {
 		log.Panicf("Error while trying to handle the new route %v\n", err)
 	}
 
 	log.Printf("Starting CoAP Server on port 5683")
 	log.Fatal(coap.ListenAndServe("udp", ":5683", r))
+
 }
