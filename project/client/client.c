@@ -30,15 +30,25 @@ AUTOSTART_PROCESSES(&client_process);
 
 #define APP_SLOTFRAME_HANDLE 1
 #define APP_UNICAST_TIMESLOT 1
-static int c = 1;
 static struct tsch_slotframe *sf_common;
-static struct tsch_slotframe *sf_next;
+// static struct tsch_slotframe *sf_next;
 
 static void initialize_tsch_schedule() {
     sf_common = tsch_schedule_add_slotframe(APP_SLOTFRAME_HANDLE, APP_SLOTFRAME_SIZE);
     tsch_schedule_add_link(
         sf_common, (LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED | LINK_OPTION_TIME_KEEPING),
         LINK_TYPE_ADVERTISING, &tsch_broadcast_address, 0, 0, 1);
+    for (int i = 1; i < APP_SLOTFRAME_SIZE; i++) {
+      for (int j = 0; j < 4; j++) {
+        struct tsch_link *link = tsch_schedule_add_link(
+            sf_common, (LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED),
+            LINK_TYPE_NORMAL, &tsch_broadcast_address, i, j, 1);
+
+        if (link == NULL) {
+            LOG_ERR("Couldn't had the link with (timeslot, channel): (%d, %d)\n", i, j);
+        }
+      }
+    }
 }
 
 /* CoAP config */
@@ -48,13 +58,27 @@ static coap_observee_t *obs;
 
 /* This function is will be passed to COAP_BLOCKING_REQUEST() to handle responses. */
 void client_chunk_handler(const uint8_t *pkt) {
-    update_pkt_log(pkt);
+    // update_pkt_log(pkt);
+    switch (update_pkt_type(pkt)) {
+      case schedule_updater_pkt_type_update:
+            LOG_INFO("Update pkt\n");
+            break;
+      case schedule_updater_pkt_type_update_complete:
+            LOG_INFO("Complete pkt\n");
+            break;
+
+    }
+    #if 0
     int err;
     switch (update_pkt_type(pkt)) {
         case schedule_updater_pkt_type_update:
+            passed = true;
             update_pkt_add_cells(pkt, sf_common);
             break;
         case schedule_updater_pkt_type_update_complete:
+            if (passed) {
+              LOG_INFO("Update Complete\n");
+            }
             err = tsch_schedule_remove_slotframe(sf_common);
             if (err == 0) {
                 LOG_ERR("Couldn't remove the tsch slot_frame");
@@ -74,7 +98,8 @@ void client_chunk_handler(const uint8_t *pkt) {
             LOG_ERR("SHOULD NEVER HAPPEN, unhandled switch case statement\n");
             return;
     }
-    LOG_INFO("Payload decoded %d\n", c++);
+    // LOG_INFO("Payload decoded %d\n", c++);
+    #endif
 }
 
 
@@ -88,7 +113,6 @@ static void notification_callback(coap_observee_t *obs, void *notification, coap
 
   LOG_INFO("Notification handler\n");
   if(notification) {
-    LOG_INFO("Getting payload\n");
     len = coap_get_payload(notification, &payload);
   }
 
@@ -101,8 +125,8 @@ static void notification_callback(coap_observee_t *obs, void *notification, coap
       // printf("%x:", payload[i]);
     // }
     // printf("\n");
-    // client_chunk_handler(payload);
-    update_pkt_log(payload + 3);
+    client_chunk_handler(payload + 3);
+    //update_pkt_log(payload + 3);
     break;
   case OBSERVE_OK: /* server accepeted observation request */
     LOG_INFO("OBSERVE_OK, payload size: : %d\n", len);
@@ -145,13 +169,13 @@ void toggle_observation(void) {
 PROCESS_THREAD(client_process, ev, data) {
     static struct etimer etimer;
     PROCESS_BEGIN();
-    etimer_set(&etimer, 10 * CLOCK_SECOND);
+    etimer_set(&etimer, 6 * 60 * CLOCK_SECOND);
 
     initialize_tsch_schedule();
 
     coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &server_ep);
 
-    // toggle observation after 30 seconds
+    // toggle observation after 6 min.
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&etimer));
     toggle_observation();
     LOG_INFO("First toggle obsersvation done\n");

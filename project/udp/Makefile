@@ -1,8 +1,6 @@
 CONTIKI_PROJECT = client
 all: $(CONTIKI_PROJECT)
 
-PROJECT_SOURCEFILES += schedule_updater.c
-
 PLATFORMS_ONLY = cooja
 
 CONTIKI=../..
@@ -12,10 +10,6 @@ MAKE_WITH_SECURITY ?= 0
 
 MAKE_MAC = MAKE_MAC_TSCH
 MAKE_ROUTING = MAKE_ROUTING_RPL_LITE
-
-# Include the CoAP implementation
-include $(CONTIKI)/Makefile.dir-variables
-MODULES += $(CONTIKI_NG_APP_LAYER_DIR)/coap
 
 ifeq ($(MAKE_WITH_SECURITY),1)
 CFLAGS += -DWITH_SECURITY=1

@@ -2,58 +2,21 @@ package main
 
 import (
 	"coap-server/scheduleupdater"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
 	"time"
-
-	"github.com/plgd-dev/go-coap/v2"
-	"github.com/plgd-dev/go-coap/v2/message/codes"
-	"github.com/plgd-dev/go-coap/v2/mux"
 )
 
-const nClients = 2;
-
-func loggingMiddleware(next mux.Handler) mux.Handler {
-	return mux.HandlerFunc(func(w mux.ResponseWriter, r *mux.Message) {
-		path, err := r.Options.Path()
-		if err != nil {
-			log.Printf("Error while retrieving the path in the options: %+v", err)
-		} else {
-			log.Printf("Got a message path=%v: %+v from %v\n", path, r, w.Client().RemoteAddr())
-		}
-		next.ServeCOAP(w, r)
-	})
-}
-
-func addCell(s *scheduleupdater.Schedule, addr net.Addr, timeslot uint16, channel uint16) {
-    neighborAddr := [4]uint16{0xf80, 0x202, 0x2, 0x2}
-	s.AddCell(addr,
-		neighborAddr,
-		&scheduleupdater.Cell{
-			LinkOptions: 1,
-			TimeSlot:    timeslot,
-			Channel:     channel,
-		})
-}
-
-func periodicSend(scheduleUpdater *scheduleupdater.Updater, schedule *scheduleupdater.Schedule) {
-	for {
-		go scheduleUpdater.UpdateClients(schedule)
-		time.Sleep(5 * time.Second)
-	}
-}
+const nClients = 5
 
 func initializeSchedule(clientCount uint) scheduleupdater.Schedule {
 	schedule := scheduleupdater.NewSchedule()
-	addrs := make([]*net.UDPAddr, clientCount)
+	addrs := make([]string, clientCount)
 	for i := uint(2); i < clientCount+2; i++ {
 		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
-		addrs[i-2] = &net.UDPAddr{
-			IP:   net.ParseIP(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i)),
-			Port: 5683,
-			Zone: "",
-		}
+		addrs[i-2] = fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i)
 	}
 	log.Println("Number of clients: ", clientCount)
 	for i := uint16(1); i < 2; i++ {
@@ -65,36 +28,127 @@ func initializeSchedule(clientCount uint) scheduleupdater.Schedule {
 	return schedule
 }
 
-func main() {
-	log.SetFlags(log.Ltime | log.Lshortfile)
-	scheduleUpdater := scheduleupdater.NewUpdaterState()
-	schedule := initializeSchedule(nClients)
-	r := mux.NewRouter()
-	r.Use(loggingMiddleware)
-	clientCount := 0
-	err := r.Handle("/schedule", mux.HandlerFunc(func(w mux.ResponseWriter, r *mux.Message) {
-		// Handle the schedule
-		obs, err := r.Options.Observe()
-		log.Printf("Message %+v\n", r)
-		log.Printf("obs %+v\n", obs)
-		if err != nil {
-			log.Panicf("Error while retrieving observer options %v\n", err)
-		}
-		if r.Code == codes.GET && err == nil && obs == 0 {
-			log.Println("Adding new client ! ", w.Client().RemoteAddr())
-			scheduleUpdater.AddClient(w.Client(), r.Token)
-			clientCount++
-			if clientCount >= len(schedule) {
-				go scheduleUpdater.UpdateClients(&schedule)
-			}
-		}
-	}))
+func addCell(s *scheduleupdater.Schedule, addr string, timeslot uint16, channel uint16) {
+	neighborAddr := [4]uint16{0xf80, 0x202, 0x2, 0x2}
+	s.AddCell(addr,
+		neighborAddr,
+		&scheduleupdater.Cell{
+			LinkOptions: 1,
+			TimeSlot:    timeslot,
+			Channel:     channel,
+		})
+}
 
-	if err != nil {
-		log.Panicf("Error while trying to handle the new route %v\n", err)
+func initializeChannels(s *scheduleupdater.Schedule) map[string]chan []byte {
+	channels := make(map[string]chan []byte)
+	for addr := range *s {
+		channels[addr] = make(chan []byte)
 	}
+	return channels
+}
 
-	log.Printf("Starting CoAP Server on port 5683")
-	log.Fatal(coap.ListenAndServe("udp", ":5683", r))
+func initializeClientsStates(conn *net.UDPConn, clientsChannels map[string]chan []byte) map[string]*ClientState {
+    clientsStates := make(map[string]*ClientState)
+    for addr, c := range clientsChannels {
+        udpAddr := net.UDPAddr{
+        	IP:   net.ParseIP(addr),
+        	Port: 8765,
+        	Zone: "",
+        }
+        clientState := NewClientState(conn, &udpAddr, c)
+        clientsStates[addr] = &clientState
+    }
+    return clientsStates
+}
 
+func SendResponse(conn *net.UDPConn, addr *net.UDPAddr, msg []byte) {
+	_, err := conn.WriteToUDP(msg, addr)
+	if err != nil {
+		log.Panicln(err)
+	}
+}
+
+type ClientState struct {
+    conn       *net.UDPConn
+    addr       *net.UDPAddr
+	pktNumber  uint16
+	pktChan    <-chan []byte
+}
+
+func NewClientState(conn *net.UDPConn, addr *net.UDPAddr, pktChan <-chan []byte) ClientState {
+    return ClientState {
+        conn: conn,
+        addr: addr,
+        pktNumber: 1,
+        pktChan: pktChan,
+    }
+}
+
+func (client *ClientState) send(pktToSend []byte) {
+    for {
+        client.conn.WriteTo(pktToSend, client.addr)
+        select {
+        case pkt := <- client.pktChan:
+            var pktNumber uint16 = (uint16(pkt[0]) << 8) + uint16(pkt[1])
+            log.Printf("Expecting ACK: %d, got %d\n", client.pktNumber, pktNumber)
+            if pktNumber == client.pktNumber {
+                log.Println("ACK correctly received")
+                fmt.Println()
+                client.pktNumber++
+                return; // Client correctly received the pktToSend
+            } else if pktNumber < client.pktNumber {
+                log.Println("Already received this ack -> doing nothing");
+            } else {
+                log.Println("Message received that was not the expected message, resending pktToSend")
+                log.Println("Message received: ", string(pkt))
+            }
+        case <-time.After(15 * time.Second):
+            log.Printf("Timeout on addr %s, resending pkt\n", client.addr.IP)
+        }
+    }
+}
+
+func (client *ClientState) periodicSend() {
+    for {
+        buffer := make([]byte, 2)
+        binary.BigEndian.PutUint16(buffer, client.pktNumber)
+        client.send(buffer)
+        time.Sleep(time.Millisecond * 500)
+    } 
+}
+
+func main() {
+	schedule := initializeSchedule(nClients)
+	clientsChannels := initializeChannels(&schedule)
+
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{
+		Port: 3000,
+		IP:   net.ParseIP("0.0.0.0"),
+	})
+	if err != nil {
+		panic(err)
+	}
+    clientsStates := initializeClientsStates(conn, clientsChannels)
+    for _, clientState := range clientsStates {
+        go clientState.periodicSend()
+    }
+
+
+	defer conn.Close()
+	fmt.Printf("server listening %s\n", conn.LocalAddr().String())
+
+	message := make([]byte, 2048)
+	for {
+		rlen, remote, err := conn.ReadFromUDP(message[:])
+		if err != nil {
+			panic(err)
+		}
+		c, in := clientsChannels[remote.IP.String()]
+		if !in {
+			log.Panic("Received a message from an address that is not in the schedule: ", remote.IP.String())
+		}
+        log.Println("Message received from ", remote.IP.String())
+		data := message[:rlen]
+		c <- data
+	}
 }
