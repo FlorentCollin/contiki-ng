@@ -5,6 +5,7 @@
 #include "net/ipv6/simple-udp.h"
 #include "net/mac/tsch/tsch.h"
 
+#include "schedule_updater.h"
 
 #include "sys/log.h"
 #define LOG_MODULE "App"
@@ -67,11 +68,14 @@ udp_rx_callback(struct simple_udp_connection *c,
   }
   highest_ack = pkt_number;
   LOG_INFO("Sending ack %u\n", pkt_number);
-  static uint8_t send_buffer[3] = {0};
+  static uint8_t send_buffer[10] = {0};
   send_buffer[0] = data[0];
   send_buffer[1] = data[1];
-  simple_udp_sendto(&udp_conn, send_buffer, 3, sender_addr);
+  simple_udp_sendto(c, send_buffer, 10, sender_addr);
 
+  LOG_INFO("Loggin pkt\n");
+  const uint8_t *pkt = data + 2;
+  update_pkt_log(pkt);
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_client_process, ev, data)

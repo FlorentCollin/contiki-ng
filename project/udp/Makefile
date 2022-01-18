@@ -1,6 +1,8 @@
 CONTIKI_PROJECT = client
 all: $(CONTIKI_PROJECT)
 
+PROJECT_SOURCEFILES += schedule_updater.c
+
 PLATFORMS_ONLY = cooja
 
 CONTIKI=../..

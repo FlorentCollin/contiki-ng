@@ -2,49 +2,34 @@ package scheduleupdater
 
 import (
 	"bytes"
+	"coap-server/client"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
-
-	"github.com/plgd-dev/go-coap/v2/message"
-	"github.com/plgd-dev/go-coap/v2/message/codes"
-	"github.com/plgd-dev/go-coap/v2/mux"
 )
 
 const ScheduleUpdaterPktMaxCells = 20
 
 type Updater struct {
 	PackagesSentCount uint32 // atomic value
-	Done              bool
-	clientsStates     map[string]*ClientState
+	clientsStates     map[string]*client.ClientState
 }
 
-func NewUpdaterState() Updater {
+func NewUpdater(clientsStates []*client.ClientState) Updater {
+	clientsMap := make(map[string]*client.ClientState)
+	for _, clientState := range clientsStates {
+		clientsMap[clientState.Addr.IP.String()] = clientState
+	}
 	return Updater{
 		PackagesSentCount: 0,
-		Done:              false,
-		clientsStates:     make(map[string]*ClientState),
-	}
-}
-
-func (s *Updater) AddClient(client mux.Client, token message.Token) {
-	_, in := s.clientsStates[client.RemoteAddr().String()]
-	if !in {
-		s.clientsStates[client.RemoteAddr().String()] = &ClientState{client, token, 1}
-		log.Println("Adding a new client: ", client.RemoteAddr().String())
+		clientsStates:     clientsMap,
 	}
 }
 
 func (s *Updater) UpdateClients(schedule *Schedule) {
-	log.Println("Called")
-	if s.Done {
-		log.Println("Already called stopping...")
-		return
-	}
-	s.Done = true
 	// helper function to check if any error and panic if any
 	panicIfErrors := func(errs <-chan error) {
 		for err := range errs {
@@ -60,10 +45,14 @@ func (s *Updater) UpdateClients(schedule *Schedule) {
 	log.Println("No errors detected while sending the new schedule 🎉")
 
 	// Update complete
-	updateCompleteErrors := s.sendToEachClient(func(ip string) ([][]byte, error) {
+	updateCompleteErrors := s.sendToEachClient(func(clientState *client.ClientState) ([][]byte, error) {
 		buffer := new(bytes.Buffer)
 		pkt := UpdateCompletePkt{}
-		err := pkt.Encode(buffer)
+		err := clientState.EncodePktNumber(buffer)
+		if err != nil {
+			return nil, err
+		}
+		err = pkt.Encode(buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -73,32 +62,32 @@ func (s *Updater) UpdateClients(schedule *Schedule) {
 	log.Println("No errors detected while sending complete pkt 🎉")
 }
 
-type Serializer = func(ip string) ([][]byte, error)
+type Serializer = func(clientState *client.ClientState) ([][]byte, error)
 
 func (s *Updater) sendToEachClient(serialize Serializer) <-chan error {
 	var wg sync.WaitGroup
 	clientCount := len(s.clientsStates)
 	errs := make(chan error, clientCount)
-	for clientIp, clientState := range s.clientsStates {
+	for _, clientState := range s.clientsStates {
 		wg.Add(1)
-		go s.serializeAndSend(clientIp, clientState, serialize, errs, &wg)
+		go s.serializeAndSend(clientState, serialize, errs, &wg)
 	}
 	wg.Wait()
 	close(errs)
 	return errs
 }
 
-func (s *Updater) serializeAndSend(clientIp string, clientState *ClientState, serialize Serializer, errs chan error, wg *sync.WaitGroup) {
+func (s *Updater) serializeAndSend(clientState *client.ClientState, serialize Serializer, errs chan error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	messages, err := serialize(clientIp)
+	messages, err := serialize(clientState)
 	if err != nil {
 		errs <- err
 		return
 	}
 	for _, message := range messages {
 		atomic.AddUint32(&s.PackagesSentCount, 1)
-		err = SendToClient(clientState.client, clientState.token, clientState.nextObs(), &message)
+		err = clientState.Send(message)
 		if err != nil {
 			errs <- err
 			return
@@ -136,11 +125,7 @@ func (pkt *UpdatePkt) Type() PktType {
 }
 
 func (pkt *UpdatePkt) Encode(buffer *bytes.Buffer) error {
-	err := binary.Write(buffer, binary.LittleEndian, []byte("   ")) // Fix bug
-	if err != nil {
-		return err
-	}
-	err = binary.Write(buffer, binary.LittleEndian, uint8(pkt.Type()))
+	err := binary.Write(buffer, binary.LittleEndian, uint8(pkt.Type()))
 	if err != nil {
 		return err
 	}
@@ -176,22 +161,7 @@ func (pkt *UpdateCompletePkt) Type() PktType {
 }
 
 func (pkt *UpdateCompletePkt) Encode(buffer *bytes.Buffer) error {
-	err := binary.Write(buffer, binary.LittleEndian, []byte("   ")) // FIX some bug
-	if err != nil {
-		return err
-	}
 	return binary.Write(buffer, binary.LittleEndian, uint8(pkt.Type()))
-}
-
-type ClientState struct {
-	client  mux.Client
-	token   message.Token
-	lastObs uint32
-}
-
-func (c *ClientState) nextObs() uint32 {
-	c.lastObs = c.lastObs + 1
-	return c.lastObs
 }
 
 type Schedule map[string]map[NeighborAddr][]Cell
@@ -215,7 +185,8 @@ func (schedulePtr *Schedule) AddCell(nodeAddr string, neihborAddr NeighborAddr, 
 	map_cells[neihborAddr] = append(cells, *cell)
 }
 
-func (schedulePtr *Schedule) Serialize(ip string) ([][]byte, error) {
+func (schedulePtr *Schedule) Serialize(clientState *client.ClientState) ([][]byte, error) {
+	ip := clientState.Addr.IP.String()
 	clientSchedule, in := (*schedulePtr)[ip]
 	if !in {
 		return nil, errors.New("the client ip address doesn't have any schedule associated with it")
@@ -230,7 +201,11 @@ func (schedulePtr *Schedule) Serialize(ip string) ([][]byte, error) {
 				Cells:        neighborCells[i:min(i+ScheduleUpdaterPktMaxCells, len(neighborCells))],
 			}
 			buffer := new(bytes.Buffer)
-			err := pkt.Encode(buffer)
+			err := clientState.EncodePktNumber(buffer)
+			if err != nil {
+				return nil, fmt.Errorf("Error while encoding the pkt into the buffer, stopping %+v\n", err)
+			}
+			err = pkt.Encode(buffer)
 			if err != nil {
 				return nil, fmt.Errorf("Error while encoding the pkt into the buffer, stopping %+v\n", err)
 			}
@@ -243,36 +218,6 @@ func (schedulePtr *Schedule) Serialize(ip string) ([][]byte, error) {
 }
 
 // ----- INTERNAL ----
-
-func SendToClient(cc mux.Client, token []byte, obs uint32, messageBody *[]byte) error {
-	m := message.Message{
-		Code:    codes.Content,
-		Token:   token,
-		Context: cc.Context(),
-		Body:    bytes.NewReader(*messageBody),
-	}
-	var opts message.Options
-	var buf []byte
-	opts, n, err := opts.SetContentFormat(buf, message.TextPlain)
-	if err == message.ErrTooSmall {
-		buf = append(buf, make([]byte, n)...)
-		opts, n, err = opts.SetContentFormat(buf, message.TextPlain)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot set content format to response: %w", err)
-	}
-	opts, n, err = opts.SetObserve(buf, obs)
-	if err == message.ErrTooSmall {
-		buf = append(buf, make([]byte, n)...)
-		opts, n, err = opts.SetObserve(buf, obs)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot set options to response: %w", err)
-	}
-	m.Options = opts
-	log.Println("Sending to client ", cc.RemoteAddr().String(), " with obs ", obs)
-	return cc.WriteMessage(&m)
-}
 
 func min(x, y int) int {
 	if x <= y {
