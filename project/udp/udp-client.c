@@ -60,20 +60,24 @@ udp_rx_callback(struct simple_udp_connection *c,
     LOG_ERR("Datalen is < 2 and therefore not packet number could be read from the data\n");
     return;
   }
-  uint16_t pkt_number = ((uint16_t) data[0] << 8) + data[1];
+  uint16_t pkt_number = ((uint16_t) data[1] << 8) + data[0];
   LOG_INFO("Received response with pkt_number %u \n", pkt_number);
   if (highest_ack > pkt_number) {
     LOG_INFO("ACK already sent, passing\n");
     return;
   }
-  highest_ack = pkt_number;
   LOG_INFO("Sending ack %u\n", pkt_number);
   static uint8_t send_buffer[10] = {0};
   send_buffer[0] = data[0];
   send_buffer[1] = data[1];
   simple_udp_sendto(c, send_buffer, 10, sender_addr);
 
-  LOG_INFO("Loggin pkt\n");
+  if (pkt_number <= highest_ack) {
+    LOG_INFO("Packet already process, only sending ACK\n");
+    return;
+  }
+  highest_ack = pkt_number;
+
   const uint8_t *pkt = data + 2;
   update_pkt_log(pkt);
 }
