@@ -15,10 +15,6 @@ include $(CONTIKI)/Makefile.dir-variables
 # MODULES += $(CONTIKI_NG_SERVICES_DIR)/shell
 MODULES += $(CONTIKI_NG_SERVICES_DIR)/rpl-border-router
 
-# Include the CoAP implementation
-include $(CONTIKI)/Makefile.dir-variables
-MODULES += $(CONTIKI_NG_APP_LAYER_DIR)/coap
-
 ifeq ($(MAKE_WITH_SECURITY),1)
 CFLAGS += -DWITH_SECURITY=1
 endif

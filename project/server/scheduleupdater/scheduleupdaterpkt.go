@@ -1,33 +1,29 @@
 package scheduleupdater
 
 import (
-	"coap-server/client"
+	"coap-server/udpack"
 	"coap-server/utils"
 	"errors"
 	"log"
+	"net"
 	"sync"
-	"sync/atomic"
 )
 
 const ScheduleUpdaterPktMaxCells = 11
 
 type Updater struct {
-	PackagesSentCount uint32 // atomic value
-	clientsStates     map[string]*client.State
+	conn    *udpack.UDPAckConn
+	clients []udpack.IPString
 }
 
-func NewUpdater(clientsStates []*client.State) Updater {
-	clientsMap := make(map[string]*client.State)
-	for _, clientState := range clientsStates {
-		clientsMap[clientState.Addr.IP.String()] = clientState
-	}
+func NewUpdater(conn *udpack.UDPAckConn, clients []udpack.IPString) Updater {
 	return Updater{
-		PackagesSentCount: 0,
-		clientsStates:     clientsMap,
+		conn:    conn,
+		clients: clients,
 	}
 }
 
-func (s *Updater) UpdateClients(schedule *Schedule) {
+func (updater *Updater) UpdateClients(schedule *Schedule) {
 	// helper function to check if any error and panic if any
 	panicIfErrors := func(errs <-chan error) {
 		for err := range errs {
@@ -38,45 +34,50 @@ func (s *Updater) UpdateClients(schedule *Schedule) {
 	}
 
 	// New schedule update
-	scheduleUpdateErrors := s.sendToEachClient(schedule.Serialize)
+	scheduleUpdateErrors := updater.sendToEachClient(schedule.Serialize)
 	panicIfErrors(scheduleUpdateErrors)
 	log.Println("No errors detected while sending the new schedule 🎉")
 
 	// Update complete
-	updateCompleteErrors := s.sendToEachClient(func(clientState *client.State) ([]client.PktEncoder, error) {
+	updateCompleteErrors := updater.sendToEachClient(func(clientIP udpack.IPString) ([][]byte, error) {
 		updateCompletePkt := UpdateCompletePkt{}
-		return []client.PktEncoder{&updateCompletePkt}, nil
+		return [][]byte{updateCompletePkt.Encode()}, nil
 	})
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
 }
 
-type Serializer = func(clientState *client.State) ([]client.PktEncoder, error)
+type Serializer = func(clientIP udpack.IPString) ([][]byte, error)
 
-func (s *Updater) sendToEachClient(serialize Serializer) <-chan error {
+func (updater *Updater) sendToEachClient(serialize Serializer) <-chan error {
 	var wg sync.WaitGroup
-	clientCount := len(s.clientsStates)
+	clientCount := len(updater.clients)
 	errs := make(chan error, clientCount)
-	for _, clientState := range s.clientsStates {
+	for _, clientIP := range updater.clients {
 		wg.Add(1)
-		go s.serializeAndSend(clientState, serialize, errs, &wg)
+		go updater.serializeAndSend(clientIP, serialize, errs, &wg)
 	}
 	wg.Wait()
 	close(errs)
 	return errs
 }
 
-func (s *Updater) serializeAndSend(clientState *client.State, serialize Serializer, errs chan error, wg *sync.WaitGroup) {
+func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Serializer, errs chan error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	pkts, err := serialize(clientState)
+	pkts, err := serialize(clientIP)
 	if err != nil {
 		errs <- err
 		return
 	}
 	for _, pkt := range pkts {
-		atomic.AddUint32(&s.PackagesSentCount, 1)
-		err = clientState.Send(pkt)
+		// @incomplete needs refactor
+		udpAddr := &net.UDPAddr{
+			IP:   net.ParseIP(string(clientIP)),
+			Port: 8765,
+			Zone: "",
+		}
+		err = updater.conn.WriteTo(pkt, udpAddr)
 		if err != nil {
 			errs <- err
 			return
@@ -108,7 +109,8 @@ func (pkt *UpdatePkt) Type() PktType {
 	return PktTypeUpdate
 }
 
-func (pkt *UpdatePkt) Encode(buffer []byte) []byte {
+func (pkt *UpdatePkt) Encode() []byte {
+	buffer := make([]byte, 0)
 	buffer = append(buffer, uint8(pkt.Type()))
 	// Appending the neighborAddr uint16 to the buffer
 	for _, v := range pkt.NeighborAddr {
@@ -129,17 +131,17 @@ func (pkt *UpdateCompletePkt) Type() PktType {
 	return PktTypeUpdateComplete
 }
 
-func (pkt *UpdateCompletePkt) Encode(buffer []byte) []byte {
-	return append(buffer, uint8(pkt.Type()))
+func (pkt *UpdateCompletePkt) Encode() []byte {
+	return []byte{uint8(pkt.Type())}
 }
 
-type Schedule map[string]map[NeighborAddr][]Cell
+type Schedule map[udpack.IPString]map[NeighborAddr][]Cell
 
 func NewSchedule() Schedule {
 	return make(Schedule)
 }
 
-func (schedulePtr *Schedule) AddCell(nodeAddr string, neihborAddr NeighborAddr, cell *Cell) {
+func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neihborAddr NeighborAddr, cell *Cell) {
 	schedule := *schedulePtr
 	mapCells, in := schedule[nodeAddr]
 	if !in {
@@ -154,14 +156,13 @@ func (schedulePtr *Schedule) AddCell(nodeAddr string, neihborAddr NeighborAddr, 
 	mapCells[neihborAddr] = append(cells, *cell)
 }
 
-func (schedulePtr *Schedule) Serialize(clientState *client.State) ([]client.PktEncoder, error) {
-	ip := clientState.Addr.IP.String()
-	clientSchedule, in := (*schedulePtr)[ip]
+func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error) {
+	clientSchedule, in := schedulePtr[clientIP]
 	if !in {
-		return nil, errors.New("the client ip address doesn't have any schedule associated with it")
+		return nil, errors.New("the udpack ip address doesn't have any schedule associated with it")
 	}
 
-	pkts := make([]client.PktEncoder, 0)
+	pkts := make([][]byte, 0)
 	for neighborAddr, neighborCells := range clientSchedule {
 		log.Printf("NeighborAddr : %+v\n", neighborAddr)
 		for i := 0; i < len(neighborCells); i += ScheduleUpdaterPktMaxCells {
@@ -169,7 +170,7 @@ func (schedulePtr *Schedule) Serialize(clientState *client.State) ([]client.PktE
 				NeighborAddr: neighborAddr,
 				Cells:        neighborCells[i:min(i+ScheduleUpdaterPktMaxCells, len(neighborCells))],
 			}
-			pkts = append(pkts, &pkt)
+			pkts = append(pkts, pkt.Encode())
 		}
 	}
 
