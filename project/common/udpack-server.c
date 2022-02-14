@@ -19,17 +19,31 @@ static struct simple_udp_connection udp_conn;
 #define UDP_CLIENT_PORT 8765
 #define UDP_SERVER_PORT 3000
 
+/*---------------------------------------------------------------------------*/
+PROCESS(udpack_process, "UDP Ack Process");
+/*---------------------------------------------------------------------------*/
+
 static void ack_middleware(struct simple_udp_connection *c,
                            const uip_ipaddr_t *sender_addr,
                            uint16_t sender_port,
                            const uip_ipaddr_t *receiver_addr,
                            uint16_t receiver_port,
                            const uint8_t *data,
-                           uint16_t datalen);
-
-/*---------------------------------------------------------------------------*/
-PROCESS(udpack_process, "UDP Ack Process");
-/*---------------------------------------------------------------------------*/
+                           uint16_t datalen) {
+    // Test if the received packet is an ACK or not
+    LOG_INFO("Received a packet from the server\n");
+    Header header = 0;
+    remove_header_from_packet(data, &header);
+    enum PacketType packet_type = decode_packet_type(header);
+    if (packet_type == PacketTypeAck) {
+        LOG_INFO("Received an ACK polling udpack_process\n");
+        ack_sequence_number = decode_sequence_number(header);
+        process_poll(&udpack_process);
+        return;
+    }
+    // TODO handle the data packet type...
+    // udp_rx_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
+}
 
 PROCESS_THREAD(udpack_process, ev, data) {
     static uint8_t sequence_number = 1;
@@ -100,27 +114,6 @@ PROCESS_THREAD(udpack_process, ev, data) {
         ack_sequence_number = 0;
     }
     PROCESS_END();
-}
-
-static void ack_middleware(struct simple_udp_connection *c,
-                           const uip_ipaddr_t *sender_addr,
-                           uint16_t sender_port,
-                           const uip_ipaddr_t *receiver_addr,
-                           uint16_t receiver_port,
-                           const uint8_t *data,
-                           uint16_t datalen) {
-    // Test if the received packet is an ACK or not
-    Header header = 0;
-    remove_header_from_packet(data, &header);
-    enum PacketType packet_type = decode_packet_type(header);
-    if (packet_type == PacketTypeAck) {
-        LOG_INFO("Received an ACK polling udpack_process\n");
-        ack_sequence_number = decode_sequence_number(header);
-        process_poll(&udpack_process);
-        return;
-    }
-    // TODO handle the data packet type...
-    // udp_rx_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
 }
 
 // send_server sends a packet to the server. The packet is created

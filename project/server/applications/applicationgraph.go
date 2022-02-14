@@ -23,6 +23,7 @@ func (app ApplicationGraph) Type() AppType {
 }
 
 func (app ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
+    log.Println("Processing graph packet...")
 	graphUpdate := decodeGraphUpdateData(packet)
 	app.updateGraph(&graphUpdate)
 }

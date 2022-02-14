@@ -1,12 +1,10 @@
 #include "contiki.h"
-#include "udpack-server.h"
 #include "etimer.h"
-#include "net/ipv6/simple-udp.h"
 #include "net/mac/tsch/tsch.h"
-#include "net/netstack.h"
-#include "net/routing/routing.h"
 #include "schedule_updater.h"
 #include "sys/log.h"
+
+#include "udpack-server.h"
 
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -90,12 +88,12 @@ PROCESS_THREAD(udp_client_process, ev, data) {
     static struct etimer hello_timer;
     PROCESS_BEGIN();
     initialize_tsch_schedule();
-    /* Initialize UDP connection */
     etimer_set(&hello_timer, 30 * CLOCK_SECOND);
     while (1) {
         PROCESS_YIELD();
         send_server(hello_world_encoder);
         etimer_reset(&hello_timer);
+        break;
     }
 
     PROCESS_END();
