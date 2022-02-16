@@ -45,7 +45,9 @@ static void ack_middleware(struct simple_udp_connection *c,
     // udp_rx_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
 }
 
-PROCESS_THREAD(udpack_process, ev, data) {
+typedef uint16_t encoder_fn(uint8_t* packet_buffer);
+
+PROCESS_THREAD(udpack_process, ev, encoder) {
     static uint8_t sequence_number = 1;
     static struct etimer resend_interval;
     static uint8_t i = 0;
@@ -57,11 +59,13 @@ PROCESS_THREAD(udpack_process, ev, data) {
     simple_udp_register(&udp_conn, UDP_CLIENT_PORT, &server_addr, UDP_SERVER_PORT, ack_middleware);
 
     while (1) {
-        PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_POLL);
-        if (!send_ready) {
-            // No packets was received just loop until we get a packet to send.
-            continue;
-        }
+        PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
+        send_buffer_len = ((encoder_fn*) encoder)(send_buffer + sizeof(Header));
+
+        // if (!send_ready) {
+        //     // No packets was received just loop until we get a packet to send.
+        //     continue;
+        // }
         LOG_INFO("Starting to send a new packet\n");
         if (sequence_number > SEQUENCE_NUMBER_MAX) {
             sequence_number = 0;
@@ -72,7 +76,7 @@ PROCESS_THREAD(udpack_process, ev, data) {
         simple_udp_send(&udp_conn, &send_buffer, send_buffer_len);
         for (i = 0; i < 4; i++) {  // retries
             LOG_INFO("Value of i: %d\n", i);
-            etimer_set(&resend_interval, 4 * CLOCK_SECOND);
+            etimer_set(&resend_interval, 10 * CLOCK_SECOND);
             PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_POLL || ev == PROCESS_EVENT_TIMER);
             if (ev == PROCESS_EVENT_TIMER) {
                 LOG_INFO("Timer expired, retrying to send the packet\n", i);
@@ -125,7 +129,7 @@ void send_server(uint16_t encoder(uint8_t *buffer)) {
         first_call = 0;
         process_start(&udpack_process, NULL);
     }
-    send_buffer_len = encoder(send_buffer + sizeof(Header) /* Ack size */);
-    send_ready = 1;
-    process_poll(&udpack_process);
+    // send_buffer_len = encoder(send_buffer + sizeof(Header) /* Ack size */);
+    // send_ready = 1;
+    process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
 }

@@ -4,7 +4,8 @@
 #include "schedule_updater.h"
 #include "sys/log.h"
 
-#include "udpack-server.h"
+// #include "udpack-server.h"
+#include "topology-application.h"
 
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -47,13 +48,13 @@
 
 
 #define HELLO_WORLD_APPLICATION 3
-static uint16_t hello_world_encoder(uint8_t *buffer) {
-    static uint8_t i = 0;
-    LOG_INFO("Encoding hello world: %d\n", i);
-    buffer[0] = HELLO_WORLD_APPLICATION;
-    buffer[1] = i++;
-    return 2;
-}
+// static uint16_t hello_world_encoder(uint8_t *buffer) {
+//     static uint8_t i = 0;
+//     LOG_INFO("Encoding hello world: %d\n", i);
+//     buffer[0] = HELLO_WORLD_APPLICATION;
+//     buffer[1] = i++;
+//     return 2;
+// }
 
 #define APP_SLOTFRAME_HANDLE 1
 #define APP_UNICAST_TIMESLOT 1
@@ -85,17 +86,9 @@ AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_client_process, ev, data) {
-    static struct etimer hello_timer;
     PROCESS_BEGIN();
     initialize_tsch_schedule();
-    etimer_set(&hello_timer, 30 * CLOCK_SECOND);
-    while (1) {
-        PROCESS_YIELD();
-        send_server(hello_world_encoder);
-        etimer_reset(&hello_timer);
-        break;
-    }
-
+    topology_application_start();
     PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

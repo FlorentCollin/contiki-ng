@@ -23,10 +23,12 @@ func main() {
 	server := udpack.NewUDPAckServer(conn, nil)
 	appGraph := applications.NewApplicationGraph()
 	appBandwith := applications.NewApplicationBandwith()
+	appTopology := applications.NewApplicationTopology()
 	appDispatcher := applications.NewAppDispatcher().
 		Subscribe(appGraph).
 		Subscribe(appBandwith).
-		Subscribe(applications.NewApplicationHelloWorld())
+		Subscribe(applications.NewApplicationHelloWorld()).
+		Subscribe(appTopology)
 
 	//schedule := initializeSchedule(nClients)
 	//go updater.UpdateClients(&schedule)

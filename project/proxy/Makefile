@@ -6,7 +6,7 @@ PLATFORMS_ONLY = cooja
 CONTIKI=../..
 
 PROJECTDIRS += ../common
-PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c graph-application.c
+PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c graph-application.c topology-application.c
 
 # force Security from command line
 MAKE_WITH_SECURITY ?= 0

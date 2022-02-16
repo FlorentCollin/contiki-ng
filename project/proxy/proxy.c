@@ -9,6 +9,7 @@
 #include "etimer.h"
 
 #include "graph-application.h"
+#include "topology-application.h"
 
 #define LOG_MODULE "Proxy"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -26,6 +27,7 @@ PROCESS_THREAD(proxy_process, ev, data) {
     if (node_id == 1) {
         NETSTACK_ROUTING.root_start();
         graph_application_start();
+        topology_application_start();
     } else {
         LOG_ERR("The proxy border should be the node with id 1\n");
     }

@@ -2,12 +2,14 @@ package applications
 
 import (
 	"coap-server/udpack"
+	"errors"
+	"fmt"
 	"log"
 	"net"
 )
 
 type ApplicationTopology struct {
-	topology map[udpack.IPString][]udpack.IPString
+	topology Topology
 }
 
 func NewApplicationTopology() ApplicationTopology {
@@ -21,14 +23,35 @@ func (app ApplicationTopology) Type() AppType {
 }
 
 func (app ApplicationTopology) ProcessPacket(addr *net.UDPAddr, packet []byte) {
-	// TODO Parse the packet correctly and update the topology graph
-	// but before that the packet representation should be figured out
 	log.Println("Received a topology packet")
-	//addrIP := udpack.AddrToIPString(addr)
-	//topologyPacket, err := decodeTopologyPacket(packet)
-	//if err != nil {
-	//	log.Panic(err)
-	//}
+	addrIP := udpack.AddrToIPString(addr)
+	topologyPacket, err := decodeTopologyPacket(packet)
+	if err != nil {
+		log.Panic(err)
+	}
+	app.topology.SetNeighbors(addrIP, topologyPacket.Neighbors)
+}
+
+func decodeTopologyPacket(packet []byte) (*TopologyPacket, error) {
+	const ipSize = 16
+	if len(packet)%ipSize != 0 {
+		return nil, errors.New(
+			fmt.Sprintf("the length of a Topology packet should be a multiple of %d"+
+				" since each IP is represented with 16 bytes, currently the length is %d", ipSize, len(packet)))
+	}
+	neighborsCount := len(packet) % ipSize
+	neighbors := make([]udpack.IPString, 0, neighborsCount)
+	for i := 0; i < neighborsCount; i++ {
+		neighborIP := packet[i*ipSize : i*ipSize+ipSize]
+		neighborIPString := udpack.NetIPToIPString(neighborIP)
+		neighbors = append(neighbors, neighborIPString)
+	}
+
+	return &TopologyPacket{Neighbors: neighbors}, nil
+}
+
+type TopologyPacket struct {
+	Neighbors []udpack.IPString
 }
 
 type Topology map[udpack.IPString][]udpack.IPString
@@ -37,10 +60,15 @@ func newTopology() Topology {
 	return make(Topology)
 }
 
-func (topology Topology) addNeighbor(addrIP, neighborIP udpack.IPString) {
+func (topology Topology) AddNeighbor(addrIP, neighborIP udpack.IPString) {
 	topology[addrIP] = append(topology[addrIP], neighborIP)
 }
 
-func (topology Topology) clearNeighbors(addrIP udpack.IPString) {
+func (topology Topology) SetNeighbors(addrIP udpack.IPString, neighborsIP []udpack.IPString) {
+	log.Println("Settings new neighbors")
+	topology[addrIP] = neighborsIP
+}
+
+func (topology Topology) ClearNeighbors(addrIP udpack.IPString) {
 	topology[addrIP] = []udpack.IPString{}
 }

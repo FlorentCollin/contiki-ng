@@ -2,7 +2,7 @@ CONTIKI_PROJECT = client
 all: $(CONTIKI_PROJECT)
 
 PROJECTDIRS += ../common
-PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c
+PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c topology-application.c
 
 PLATFORMS_ONLY = cooja
 

@@ -45,7 +45,7 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
     uip_ipaddr_t child_ipaddr;
     uip_ipaddr_t parent_ipaddr;
     link = uip_sr_node_head();
-    uint16_t index = encode_graph_application_type(packet_buffer);
+    uint16_t packet_size = encode_graph_application_type(packet_buffer);
     while (link != NULL) {
         if (link->parent == NULL) {
             link = uip_sr_node_next(link);
@@ -54,34 +54,14 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
 
         NETSTACK_ROUTING.get_sr_node_ipaddr(&child_ipaddr, link);
         NETSTACK_ROUTING.get_sr_node_ipaddr(&parent_ipaddr, link->parent);
-        memcpy(&packet_buffer[index], &child_ipaddr, sizeof(child_ipaddr));
-        index += sizeof(child_ipaddr);
-        memcpy(&packet_buffer[index], &parent_ipaddr, sizeof(parent_ipaddr));
-        index += sizeof(parent_ipaddr);
-        memcpy(&packet_buffer[index], &link->lifetime, sizeof(link->lifetime));
-        index += sizeof(link->lifetime);
+        memcpy(&packet_buffer[packet_size], &child_ipaddr, sizeof(child_ipaddr));
+        packet_size += sizeof(child_ipaddr);
+        memcpy(&packet_buffer[packet_size], &parent_ipaddr, sizeof(parent_ipaddr));
+        packet_size += sizeof(parent_ipaddr);
+        memcpy(&packet_buffer[packet_size], &link->lifetime, sizeof(link->lifetime));
+        packet_size += sizeof(link->lifetime);
 
         link = uip_sr_node_next(link);
     }
-    return index;
+    return packet_size;
 }
-
-
- /*static void send_rpl_neighbors() {*/
-     /*static uint8_t data[128];*/
-     /*rpl_nbr_t *nbr = nbr_table_head(rpl_neighbors);*/
-     /*uip_ipaddr_t *nbr_ip;*/
-     /*uint16_t index = 0;*/
-     /*while(nbr != NULL) {*/
-         /*nbr_ip = rpl_neighbor_get_ipaddr(nbr);*/
-         /*memcpy(&data[index], nbr_ip, sizeof(*nbr_ip));*/
-         /*index += sizeof(*nbr_ip);*/
-         /*if (index > 128) {*/
-             /*LOG_ERR("Trying to write more neighbors than allowed by the size of the buffer\n");*/
-             /*return;*/
-         /*}*/
-         /*nbr = nbr_table_next(rpl_neighbors, nbr);*/
-     /*}*/
-     /*simple_udp_send(&udp_conn, &data, index);*/
-
- /*}*/

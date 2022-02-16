@@ -8,6 +8,10 @@ func AddrToIPString(addr *net.UDPAddr) IPString {
 	return IPString(addr.IP.String())
 }
 
+func NetIPToIPString(addr net.IP) IPString {
+	return IPString(addr.String())
+}
+
 type SequencesNumbersMap map[IPString]uint8
 
 func (sequenceNumberMap SequencesNumbersMap) initializeAddrIP(addrIP IPString) uint8 {
