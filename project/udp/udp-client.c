@@ -4,7 +4,6 @@
 #include "schedule_updater.h"
 #include "sys/log.h"
 
-// #include "udpack-server.h"
 #include "topology-application.h"
 
 #define LOG_MODULE "App"
@@ -12,39 +11,6 @@
 
 #define SEND_INTERVAL (20 * CLOCK_SECOND)
 
-// static uint16_t highest_ack = 0;
-// static void udp_rx_callback(struct simple_udp_connection *c,
-//                             const uip_ipaddr_t *sender_addr,
-//                             uint16_t sender_port,
-//                             const uip_ipaddr_t *receiver_addr,
-//                             uint16_t receiver_port,
-//                             const uint8_t *data,
-//                             uint16_t datalen) {
-//     if (datalen < 2) {
-//         LOG_ERR("Datalen is < 2 and therefore not packet number could be read from the data\n");
-//         return;
-//     }
-//     uint16_t pkt_number = ((uint16_t)data[1] << 8) + data[0];
-//     LOG_INFO("Received response with pkt_number %u \n", pkt_number);
-//     if (highest_ack > pkt_number) {
-//         LOG_INFO("ACK already sent, passing\n");
-//         return;
-//     }
-//     LOG_INFO("Sending ack %u\n", pkt_number);
-//     static uint8_t send_buffer[10] = {0};
-//     send_buffer[0] = data[0];
-//     send_buffer[1] = data[1];
-//     simple_udp_sendto(c, send_buffer, 10, sender_addr);
-
-//     if (pkt_number <= highest_ack) {
-//         LOG_INFO("Packet already process, only sending ACK\n");
-//         return;
-//     }
-//     highest_ack = pkt_number;
-
-//     const uint8_t *pkt = data + 2;
-//     update_pkt_log(pkt);
-// }
 
 
 #define HELLO_WORLD_APPLICATION 3

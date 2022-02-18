@@ -2,13 +2,15 @@ package main
 
 import (
 	"coap-server/applications"
+	"coap-server/scheduleupdater"
 	"coap-server/udpack"
 	"fmt"
 	"log"
 	"net"
 )
 
-const nCells = 20
+const nCells = 1
+const nClients = 1
 
 func main() {
 	addr := &net.UDPAddr{
@@ -30,8 +32,9 @@ func main() {
 		Subscribe(applications.NewApplicationHelloWorld()).
 		Subscribe(appTopology)
 
-	//schedule := initializeSchedule(nClients)
-	//go updater.UpdateClients(&schedule)
+	schedule, clients := initializeSchedule(nClients)
+	updater := scheduleupdater.NewUpdater(server, clients)
+	go updater.UpdateClients(&schedule)
 
 	defer func(server *udpack.UDPAckConn) {
 		err := server.Close()
@@ -45,34 +48,34 @@ func main() {
 
 // -- INTERNAL --
 
-//func initializeSchedule(clientCount uint) scheduleupdater.Schedule {
-//	schedule := scheduleupdater.NewSchedule()
-//	addrs := make([]string, clientCount)
-//	for i := uint(2); i < clientCount+2; i++ {
-//		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
-//		addrs[i-2] = fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i)
-//	}
-//	log.Println("Number of clients: ", clientCount)
-//	for i := uint16(1); i < nCells+1; i++ {
-//		for _, addr := range addrs {
-//			addCell(&schedule, addr, i, i+1)
-//		}
-//	}
-//	log.Println("Schedule len : ", len(schedule))
-//	return schedule
-//}
-//
-//func addCell(s *scheduleupdater.Schedule, addr string, timeslot uint16, channel uint16) {
-//	neighborAddr := [4]uint16{0xf80, 0x202, 0x2, 0x2}
-//	s.AddCell(addr,
-//		neighborAddr,
-//		&scheduleupdater.Cell{
-//			LinkOptions: 1,
-//			TimeSlot:    timeslot,
-//			Channel:     channel,
-//		})
-//}
-//
+func initializeSchedule(clientCount uint) (scheduleupdater.Schedule, []udpack.IPString) {
+	schedule := scheduleupdater.NewSchedule()
+	addrs := make([]udpack.IPString, clientCount)
+	for i := uint(2); i < clientCount+2; i++ {
+		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
+		addrs[i-2] = udpack.IPString(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i))
+	}
+	log.Println("Number of clients: ", clientCount)
+	for i := uint16(1); i < nCells+1; i++ {
+		for _, addr := range addrs {
+			addCell(&schedule, addr, i, i+1)
+		}
+	}
+	log.Println("Schedule len : ", len(schedule))
+	return schedule, addrs
+}
+
+func addCell(s *scheduleupdater.Schedule, addr udpack.IPString, timeslot uint16, channel uint16) {
+	neighborAddr := [4]uint16{0xf80, 0x202, 0x2, 0x2}
+	s.AddCell(addr,
+		neighborAddr,
+		&scheduleupdater.Cell{
+			LinkOptions: 1,
+			TimeSlot:    timeslot,
+			Channel:     channel,
+		})
+}
+
 //func initializeChannels(s *scheduleupdater.Schedule) map[string]chan []byte {
 //	channels := make(map[string]chan []byte)
 //	for addr := range *s {

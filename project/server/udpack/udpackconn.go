@@ -58,6 +58,7 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 }
 
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
+	log.Println("Size of the packet to send: ", len(packet))
 	addrIP := AddrToIPString(addr)
 	ackChan, in := udpAckConn.ackChannels[addrIP]
 	if !in {
@@ -69,7 +70,6 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 	if err != nil {
 		return err
 	}
-	copy(packetWithHeader[1:], packet)
 	log.Println("Size of packet: ", len(packetWithHeader))
 	config := udpAckConn.config
 	conn := udpAckConn.conn

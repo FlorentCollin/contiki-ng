@@ -4,6 +4,7 @@
 #include "net/ipv6/uip.h"
 #include "etimer.h"
 #include "sys/log.h"
+#include "schedule_updater.h"
 
 #define LOG_MODULE "UDPAckServer"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -22,6 +23,41 @@ static struct simple_udp_connection udp_conn;
 /*---------------------------------------------------------------------------*/
 PROCESS(udpack_process, "UDP Ack Process");
 /*---------------------------------------------------------------------------*/
+
+static uint16_t highest_ack = 0;
+static void udp_rx_callback(struct simple_udp_connection *c,
+                            const uip_ipaddr_t *sender_addr,
+                            uint16_t sender_port,
+                            const uip_ipaddr_t *receiver_addr,
+                            uint16_t receiver_port,
+                            const uint8_t *data,
+                            uint16_t datalen) {
+    if (datalen < 2) {
+        LOG_ERR("Datalen is < 2 and therefore not packet number could be read from the data\n");
+        return;
+    }
+    Header header;
+    remove_header_from_packet(data, &header);
+    uint8_t sequence_number = decode_sequence_number(header);
+    LOG_INFO("Received response with sequence_number %u \n", sequence_number);
+    if (highest_ack > sequence_number) {
+        LOG_INFO("ACK already sent, passing\n");
+        return;
+    }
+    LOG_INFO("Sending ack %u\n", sequence_number);
+    static uint8_t send_buffer[10] = {0};
+    new_ack_packet(send_buffer, sequence_number);
+    simple_udp_sendto(c, send_buffer, 10, sender_addr);
+
+    if (sequence_number <= highest_ack) {
+        LOG_INFO("Packet already process, only sending ACK\n");
+        return;
+    }
+    highest_ack = sequence_number;
+
+    const uint8_t *pkt = data + 1;
+    update_pkt_log(pkt);
+}
 
 static void ack_middleware(struct simple_udp_connection *c,
                            const uip_ipaddr_t *sender_addr,
@@ -42,7 +78,8 @@ static void ack_middleware(struct simple_udp_connection *c,
         return;
     }
     // TODO handle the data packet type...
-    // udp_rx_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
+    LOG_INFO("Call udp_rx_callback\n");
+    udp_rx_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
 }
 
 typedef uint16_t encoder_fn(uint8_t* packet_buffer);
@@ -62,10 +99,6 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
         PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
         send_buffer_len = ((encoder_fn*) encoder)(send_buffer + sizeof(Header));
 
-        // if (!send_ready) {
-        //     // No packets was received just loop until we get a packet to send.
-        //     continue;
-        // }
         LOG_INFO("Starting to send a new packet\n");
         if (sequence_number > SEQUENCE_NUMBER_MAX) {
             sequence_number = 0;

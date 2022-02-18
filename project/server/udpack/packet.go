@@ -25,7 +25,7 @@ func newDataPacket(sequenceNumber uint8, packet []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	packetWithHeader := make([]byte, 0, len(packet))
+	packetWithHeader := make([]byte, len(packet)+1)
 	packetWithHeader[0] = byte(header)
 	copy(packetWithHeader[1:], packet)
 	return packetWithHeader, nil
