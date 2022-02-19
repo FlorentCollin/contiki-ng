@@ -162,7 +162,5 @@ void send_server(uint16_t encoder(uint8_t *buffer)) {
         first_call = 0;
         process_start(&udpack_process, NULL);
     }
-    // send_buffer_len = encoder(send_buffer + sizeof(Header) /* Ack size */);
-    // send_ready = 1;
     process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
 }

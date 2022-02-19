@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
+	"strings"
+    "strconv"
 )
 
-const nCells = 1
-const nClients = 1
+//const nCells = 10
+const nClients = 2
 
 func main() {
 	addr := &net.UDPAddr{
@@ -48,20 +51,57 @@ func main() {
 
 // -- INTERNAL --
 
+func shellSchedule(schedule *scheduleupdater.Schedule, addrs []udpack.IPString) {
+    generator := exec.Command("python", "generator.py", fmt.Sprint(nClients), "5", "5", "10")
+    generator.Run()
+    cmd := exec.Command("clingo", "-t 8", "facts.pl", "main.pl")
+    stdout, _ := cmd.Output()
+    parseOutput(schedule, addrs, string(stdout))
+}
+
+func parseOutput(schedule *scheduleupdater.Schedule, addrs []udpack.IPString, output string) {
+    for _, line := range strings.Split(output, "\n") {
+        if !strings.HasPrefix(line, "cell") {
+            continue
+        }
+        for _, cell := range strings.Split(line, " ") {
+            parameters := strings.Split(cell[5:len(cell)-1], ",")
+            n, err := strconv.ParseInt(parameters[0], 10, 32)
+            if err != nil {
+                log.Panic(err.Error())
+            }
+            //m, err := strconv.ParseInt(parameters[1], 10, 32)
+            if err != nil {
+                log.Panic(err.Error())
+            }
+            s, err := strconv.ParseUint(parameters[2], 10, 16)
+            if err != nil {
+                log.Panic(err.Error())
+            }
+            c, err := strconv.ParseUint(parameters[3], 10, 16)
+            if err != nil {
+                log.Panic(err.Error())
+            }
+            fmt.Println(n, s, c)
+            addCell(schedule, addrs[n], uint16(s-1), uint16(c-1))
+        }
+    }
+}
+
 func initializeSchedule(clientCount uint) (scheduleupdater.Schedule, []udpack.IPString) {
 	schedule := scheduleupdater.NewSchedule()
-	addrs := make([]udpack.IPString, clientCount)
-	for i := uint(2); i < clientCount+2; i++ {
+	addrs := make([]udpack.IPString, clientCount+1)
+	for i := uint(1); i < clientCount+2; i++ {
 		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
-		addrs[i-2] = udpack.IPString(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i))
+		addrs[i-1] = udpack.IPString(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i))
 	}
 	log.Println("Number of clients: ", clientCount)
-	for i := uint16(1); i < nCells+1; i++ {
-		for _, addr := range addrs {
-			addCell(&schedule, addr, i, i+1)
-		}
-	}
-	log.Println("Schedule len : ", len(schedule))
+    shellSchedule(&schedule, addrs)
+	//for i := uint16(1); i < nCells+1; i++ {
+		//for _, addr := range addrs {
+			//addCell(&schedule, addr, i, i+1)
+		//}
+	//}
 	return schedule, addrs
 }
 
