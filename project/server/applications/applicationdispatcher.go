@@ -1,6 +1,7 @@
 package applications
 
 import (
+	"coap-server/utils"
 	"log"
 	"net"
 )
@@ -15,7 +16,7 @@ type AppType int
 const (
 	AppTypeGraph = iota
 	AppTypeTopology
-	AppTypeBandwith
+	AppTypeBandwidth
 	AppTypeHelloWorld
 	ApplicationTypeAll
 )
@@ -45,12 +46,12 @@ func (dispatcher *AppDispatcher) Subscribe(app App) *AppDispatcher {
 }
 
 func (dispatcher *AppDispatcher) Handler(addr *net.UDPAddr, packet []byte) {
-	log.Println("Application dispatcher handler called")
+	logger.Println("Application dispatcher handler called")
 	appType, packetWithoutAppType := removeAppType(packet)
 	if appType >= ApplicationTypeAll {
 		log.Panic("The AppType contained in the packet is not a valid AppType (value: ", appType, ")")
 	}
-	log.Println("Apptype:", appType.debug())
+	logger.Println("Apptype:", appType.debug())
 	for _, app := range dispatcher.applications[appType] {
 		go app.ProcessPacket(addr, packetWithoutAppType)
 	}
@@ -60,3 +61,5 @@ func removeAppType(packet []byte) (AppType, []byte) {
 	rawAppType := packet[0]
 	return AppType(rawAppType), packet[1:]
 }
+
+var logger = utils.NewLogger(utils.LogLevelInfo, utils.WHITE)

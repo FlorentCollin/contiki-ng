@@ -8,27 +8,34 @@ import (
 	"net"
 )
 
+type BandwidthMap map[udpack.IPString]uint
 type ApplicationBandwith struct {
-	bandwith map[udpack.IPString]uint
+	Bandwith BandwidthMap
+	nClients uint
 }
 
-func NewApplicationBandwith() ApplicationBandwith {
+func NewApplicationBandwith(nClients uint) ApplicationBandwith {
 	return ApplicationBandwith{
-		bandwith: make(map[udpack.IPString]uint),
+		Bandwith: make(BandwidthMap),
+		nClients: nClients,
 	}
 }
 
-func (app ApplicationBandwith) Type() AppType {
-	return AppTypeBandwith
+func (app *ApplicationBandwith) Type() AppType {
+	return AppTypeBandwidth
 }
 
-func (app ApplicationBandwith) ProcessPacket(addr *net.UDPAddr, packet []byte) {
+func (app *ApplicationBandwith) ProcessPacket(addr *net.UDPAddr, packet []byte) {
 	addrIP := udpack.AddrToIPString(addr)
 	bandwith, err := decodeBandwith(packet)
 	if err != nil {
 		log.Panic(err)
 	}
-	app.bandwith[addrIP] = bandwith
+	app.Bandwith[addrIP] = bandwith
+}
+
+func (app *ApplicationBandwith) Ready() bool {
+	return len(app.Bandwith) == int(app.nClients)
 }
 
 func decodeBandwith(packet []byte) (uint, error) {

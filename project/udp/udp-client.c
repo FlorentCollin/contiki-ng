@@ -5,6 +5,7 @@
 #include "sys/log.h"
 
 #include "topology-application.h"
+#include "bandwidth-application.h"
 
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -22,7 +23,7 @@
 //     return 2;
 // }
 
-#define APP_SLOTFRAME_HANDLE 1
+#define APP_SLOTFRAME_HANDLE 0
 #define APP_UNICAST_TIMESLOT 1
 static struct tsch_slotframe *sf_common;
 // static struct tsch_slotframe *sf_next;
@@ -55,6 +56,7 @@ PROCESS_THREAD(udp_client_process, ev, data) {
     PROCESS_BEGIN();
     initialize_tsch_schedule();
     topology_application_start();
+    bandwidth_application_start(2);
     PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

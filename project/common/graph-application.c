@@ -24,7 +24,7 @@ static struct etimer timer;
 PROCESS_THREAD(graph_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Graph application started\n");
-    etimer_set(&timer, 180 * CLOCK_SECOND);
+    etimer_set(&timer, 30 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(encode_graph);
@@ -54,6 +54,12 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
 
         NETSTACK_ROUTING.get_sr_node_ipaddr(&child_ipaddr, link);
         NETSTACK_ROUTING.get_sr_node_ipaddr(&parent_ipaddr, link->parent);
+        LOG_INFO("Something Child: ");
+        LOG_INFO_6ADDR(&child_ipaddr);
+        printf("\n");
+        LOG_INFO("Something Parent: ");
+        LOG_INFO_6ADDR(&parent_ipaddr);
+        printf("\n");
         memcpy(&packet_buffer[packet_size], &child_ipaddr, sizeof(child_ipaddr));
         packet_size += sizeof(child_ipaddr);
         memcpy(&packet_buffer[packet_size], &parent_ipaddr, sizeof(parent_ipaddr));
@@ -63,5 +69,6 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
 
         link = uip_sr_node_next(link);
     }
+    LOG_INFO("Graph size: %d\n", packet_size);
     return packet_size;
 }

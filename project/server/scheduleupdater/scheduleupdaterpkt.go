@@ -4,6 +4,7 @@ import (
 	"coap-server/udpack"
 	"coap-server/utils"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -40,11 +41,12 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 
 	// Update complete
 	updateCompleteErrors := updater.sendToEachClient(func(clientIP udpack.IPString) ([][]byte, error) {
-		updateCompletePkt := UpdateCompletePkt{}
+		updateCompletePkt := UpdateConfirmation{}
 		return [][]byte{updateCompletePkt.Encode()}, nil
 	})
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
+	panic("Everything is ok don't worry ! be happy 🎉🎉🎉🎉🎉")
 }
 
 type Serializer = func(clientIP udpack.IPString) ([][]byte, error)
@@ -85,7 +87,7 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 	}
 }
 
-type NeighborAddr [4]uint16
+type NeighborAddr [16]byte
 
 type Cell struct {
 	LinkOptions uint8
@@ -96,42 +98,43 @@ type Cell struct {
 type PktType int
 
 const (
-	PktTypeUpdate = iota
-	PktTypeUpdateComplete
+	PktTypeUpdateRequest = iota
+	PktTypeUpdateConfirmation
 )
 
-type UpdatePkt struct {
-	NeighborAddr [4]uint16
+type UpdateRequest struct {
+	NeighborAddr NeighborAddr
 	Cells        []Cell
 }
 
-func (pkt *UpdatePkt) Type() PktType {
-	return PktTypeUpdate
+func (pkt *UpdateRequest) Type() PktType {
+	return PktTypeUpdateRequest
 }
 
-func (pkt *UpdatePkt) Encode() []byte {
+func (pkt *UpdateRequest) Encode() []byte {
 	buffer := make([]byte, 0)
 	buffer = append(buffer, uint8(pkt.Type()))
 	// Appending the neighborAddr uint16 to the buffer
 	for _, v := range pkt.NeighborAddr {
-		buffer = utils.AppendBigEndianUint16(buffer, v)
+		buffer = append(buffer, v)
 	}
 	buffer = append(buffer, uint8(len(pkt.Cells)))
 	for i := 0; i < len(pkt.Cells); i++ {
 		buffer = append(buffer, pkt.Cells[i].LinkOptions)
+		fmt.Println("\033[1;33m", pkt.Cells[i].TimeSlot, pkt.Cells[i].Channel, "\033[0m")
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].TimeSlot)
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].Channel)
 	}
 	return buffer
 }
 
-type UpdateCompletePkt struct{}
+type UpdateConfirmation struct{}
 
-func (pkt *UpdateCompletePkt) Type() PktType {
-	return PktTypeUpdateComplete
+func (pkt *UpdateConfirmation) Type() PktType {
+	return PktTypeUpdateConfirmation
 }
 
-func (pkt *UpdateCompletePkt) Encode() []byte {
+func (pkt *UpdateConfirmation) Encode() []byte {
 	return []byte{uint8(pkt.Type())}
 }
 
@@ -159,14 +162,14 @@ func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neihborAddr Neigh
 func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error) {
 	clientSchedule, in := schedulePtr[clientIP]
 	if !in {
-		return nil, errors.New("the udpack ip address doesn't have any schedule associated with it")
+		return nil, errors.New(fmt.Sprintf("the udpack ip address (%s) doesn't have any schedule associated with it", clientIP))
 	}
 
 	pkts := make([][]byte, 0)
 	for neighborAddr, neighborCells := range clientSchedule {
 		log.Printf("NeighborAddr : %+v\n", neighborAddr)
 		for i := 0; i < len(neighborCells); i += ScheduleUpdaterPktMaxCells {
-			pkt := UpdatePkt{
+			pkt := UpdateRequest{
 				NeighborAddr: neighborAddr,
 				Cells:        neighborCells[i:min(i+ScheduleUpdaterPktMaxCells, len(neighborCells))],
 			}

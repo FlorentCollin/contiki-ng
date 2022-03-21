@@ -22,8 +22,8 @@ def generator(filename: str, config: GeneratorConfig):
         for (n, m) in zip(range(1, config.nNodes + 1), range(0, config.nNodes + 1)):
             f.write(f"topology({n}, {m}). topology({m}, {n}). ")
         f.write("\n")
-        f.write(f"bandwith(N, {config.bandwith}) :- node(N).\n")
-        f.write(f"totalBandwith({config.bandwith * config.nNodes * 2}).\n")
+        f.write(f"bandwidth(N, {config.bandwith}) :- node(N).\n")
+        f.write(f"totalBandwidth({config.bandwith * config.nNodes * 2}).\n")
 
 if __name__ == "__main__":
     config = GeneratorConfig(nNodes = int(sys.argv[1]), nSlots = int(sys.argv[2]), nChannels = int(sys.argv[3]), bandwith = int(sys.argv[4]))

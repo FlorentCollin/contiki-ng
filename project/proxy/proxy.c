@@ -10,6 +10,7 @@
 
 #include "graph-application.h"
 #include "topology-application.h"
+#include "bandwidth-application.h"
 
 #define LOG_MODULE "Proxy"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -21,13 +22,20 @@ PROCESS(proxy_process, "Proxy Border");
 AUTOSTART_PROCESSES(&proxy_process);
 
 PROCESS_THREAD(proxy_process, ev, data) {
+    static struct etimer timer;
     PROCESS_BEGIN();
     LOG_INFO("Proxy border started\n");
 
+    etimer_set(&timer, 10 * CLOCK_SECOND);
     if (node_id == 1) {
         NETSTACK_ROUTING.root_start();
-        graph_application_start();
         topology_application_start();
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+        etimer_reset(&timer);
+        graph_application_start();
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+        etimer_reset(&timer);
+        bandwidth_application_start(2);
     } else {
         LOG_ERR("The proxy border should be the node with id 1\n");
     }

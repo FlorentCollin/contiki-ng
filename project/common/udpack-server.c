@@ -9,7 +9,7 @@
 #define LOG_MODULE "UDPAckServer"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define SEND_BUFFER_SIZE 256
+#define SEND_BUFFER_SIZE 512
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
 static int send_ready = 0;
 static uint16_t send_buffer_len;
@@ -56,7 +56,7 @@ static void udp_rx_callback(struct simple_udp_connection *c,
     highest_ack = sequence_number;
 
     const uint8_t *pkt = data + 1;
-    update_pkt_log(pkt);
+    update_pkt_dispatch(pkt);
 }
 
 static void ack_middleware(struct simple_udp_connection *c,

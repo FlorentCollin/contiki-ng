@@ -1,6 +1,9 @@
 package udpack
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type IPString string
 
@@ -10,6 +13,12 @@ func AddrToIPString(addr *net.UDPAddr) IPString {
 
 func NetIPToIPString(addr net.IP) IPString {
 	return IPString(addr.String())
+}
+
+func (ipString IPString) LinkLocalToGlobal() IPString {
+	// TODO: This is a kind of hack since normally we should not be able to get the local address from the link-local addr
+	// This certainly only works in Cooja
+	return IPString(strings.Replace(string(ipString), "fe80", "fd00", 1))
 }
 
 type SequencesNumbersMap map[IPString]uint8
