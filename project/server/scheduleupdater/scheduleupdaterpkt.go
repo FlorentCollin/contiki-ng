@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"sync"
+    "os"
 )
 
 const ScheduleUpdaterPktMaxCells = 11
@@ -46,7 +47,8 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 	})
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
-	panic("Everything is ok don't worry ! be happy 🎉🎉🎉🎉🎉")
+    log.Println("Everything is ok don't worry! Be happy 🎉🎉🎉")
+	os.Exit(0)
 }
 
 type Serializer = func(clientIP udpack.IPString) ([][]byte, error)

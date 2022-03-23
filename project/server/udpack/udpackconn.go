@@ -109,7 +109,7 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 				}
 			}
 		case <-time.After(config.Timeout):
-			logger.WarningPrintln("Timeout on addr %s, resending pkt\n", addr.IP.String())
+			logger.WarningPrintln("Timeout on addr",  addr.IP.String(), "resending pkt\n")
 			_, err := conn.WriteTo(packetWithHeader, addr)
 			if err != nil {
 				return err
@@ -164,7 +164,7 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 }
 
 func (udpAckConn *UDPAckConn) sendAck(addr *net.UDPAddr, sequenceNumber uint8) error {
-	logger.InfoPrintln("Sending the ACK to %s with sequence number %d\n", addr, sequenceNumber)
+	logger.InfoPrintln("Sending the ACK to ", addr, " with sequence number ", sequenceNumber, "\n")
 	ackPacket, err := newAckPacket(sequenceNumber)
 	if err != nil {
 		return err

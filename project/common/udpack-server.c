@@ -104,7 +104,6 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
             sequence_number = 0;
         }
         send_buffer_len += new_data_packet(send_buffer, sequence_number);
-        LOG_INFO("Sending header: %d\n", send_buffer[0]);
         LOG_INFO("Sending %d bytes to the server\n", send_buffer_len);
         simple_udp_send(&udp_conn, &send_buffer, send_buffer_len);
         for (i = 0; i < 4; i++) {  // retries

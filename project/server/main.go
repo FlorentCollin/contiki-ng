@@ -152,13 +152,15 @@ func generateFacts(addrs []udpack.IPString, graph *applications.RPLGraph, topolo
 	}
 	writeStringPanic(f, "\n")
 
-	for n, neighbors := range *topology {
-		for _, m := range neighbors {
-			indexN := indexOf(addrs, n)
-			indexM := indexOf(addrs, m)
-			writeStringPanic(f, fmt.Sprintf("topology(%d, %d). ", indexN, indexM))
-		}
-	}
+    // TODO: This part is mostly non sense since we can't deduce the topology just by enumerating
+    // all neighbors of a node. So we remove it from now on.
+	//for n, neighbors := range *topology {
+		//for _, m := range neighbors {
+			//indexN := indexOf(addrs, n)
+			//indexM := indexOf(addrs, m)
+			//writeStringPanic(f, fmt.Sprintf("topology(%d, %d). ", indexN, indexM))
+		//}
+	//}
 	writeStringPanic(f, "\n")
 
 	totalBandwidth := uint(0)
