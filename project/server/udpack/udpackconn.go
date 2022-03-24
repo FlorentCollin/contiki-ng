@@ -109,7 +109,7 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 				}
 			}
 		case <-time.After(config.Timeout):
-			logger.WarningPrintln("Timeout on addr",  addr.IP.String(), "resending pkt\n")
+			logger.WarningPrintln("Timeout on addr", addr.IP.String(), "resending pkt\n")
 			_, err := conn.WriteTo(packetWithHeader, addr)
 			if err != nil {
 				return err

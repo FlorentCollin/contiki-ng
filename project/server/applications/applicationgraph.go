@@ -6,24 +6,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
-    "sync"
 )
-
-type RPLGraph map[udpack.IPString]*RPLLink
 
 type ApplicationGraph struct {
 	Graph    RPLGraph
 	nClients uint
-    lock sync.RWMutex
-
+	lock     sync.RWMutex
 }
 
 func NewApplicationGraph(nClients uint) ApplicationGraph {
 	return ApplicationGraph{
 		Graph:    make(RPLGraph),
 		nClients: nClients,
-        lock: sync.RWMutex{},
+		lock:     sync.RWMutex{},
 	}
 }
 
@@ -62,8 +59,8 @@ func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
 
 func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP udpack.IPString, lifetime uint32) {
 	time.Sleep(time.Duration(lifetime) * time.Second)
-    app.lock.RLock()
-    defer app.lock.RUnlock()
+	app.lock.RLock()
+	defer app.lock.RUnlock()
 	rplLink, in := app.Graph[childIP]
 	if !in || time.Now().Before(rplLink.ExpiredTime) {
 		return
@@ -77,6 +74,8 @@ func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP udpack.IPS
 	}
 	delete(app.Graph, childIP)
 }
+
+type RPLGraph map[udpack.IPString]*RPLLink
 
 type RPLLink struct {
 	ParentIP    udpack.IPString

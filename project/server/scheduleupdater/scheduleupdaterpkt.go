@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"sync"
-    "os"
 )
 
 const ScheduleUpdaterPktMaxCells = 11
@@ -47,7 +47,7 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 	})
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
-    log.Println("Everything is ok don't worry! Be happy 🎉🎉🎉")
+	log.Println("Everything is ok don't worry! Be happy 🎉🎉🎉")
 	os.Exit(0)
 }
 
@@ -89,12 +89,16 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 	}
 }
 
-type NeighborAddr [16]byte
-
 type Cell struct {
 	LinkOptions uint8
 	TimeSlot    uint16
 	Channel     uint16
+}
+
+func (cell *Cell) Equals(other *Cell) bool {
+	return cell.LinkOptions == other.LinkOptions &&
+		cell.TimeSlot == other.TimeSlot &&
+		cell.Channel == other.Channel
 }
 
 type PktType int
@@ -105,7 +109,7 @@ const (
 )
 
 type UpdateRequest struct {
-	NeighborAddr NeighborAddr
+	NeighborAddr net.IP
 	Cells        []Cell
 }
 
@@ -140,17 +144,17 @@ func (pkt *UpdateConfirmation) Encode() []byte {
 	return []byte{uint8(pkt.Type())}
 }
 
-type Schedule map[udpack.IPString]map[NeighborAddr][]Cell
+type Schedule map[udpack.IPString]map[udpack.IPString][]Cell
 
 func NewSchedule() Schedule {
 	return make(Schedule)
 }
 
-func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neihborAddr NeighborAddr, cell *Cell) {
+func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neihborAddr udpack.IPString, cell *Cell) {
 	schedule := *schedulePtr
 	mapCells, in := schedule[nodeAddr]
 	if !in {
-		mapCells = make(map[NeighborAddr][]Cell)
+		mapCells = make(map[udpack.IPString][]Cell)
 		schedule[nodeAddr] = mapCells
 	}
 	cells, in := mapCells[neihborAddr]
@@ -172,7 +176,7 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 		log.Printf("NeighborAddr : %+v\n", neighborAddr)
 		for i := 0; i < len(neighborCells); i += ScheduleUpdaterPktMaxCells {
 			pkt := UpdateRequest{
-				NeighborAddr: neighborAddr,
+				NeighborAddr: net.ParseIP(string(neighborAddr)),
 				Cells:        neighborCells[i:min(i+ScheduleUpdaterPktMaxCells, len(neighborCells))],
 			}
 			pkts = append(pkts, pkt.Encode())
@@ -181,6 +185,15 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 
 	log.Println("Number of pkts to send: ", len(pkts))
 	return pkts, nil
+}
+
+func (schedule Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) bool {
+	for _, schedule_cell := range schedule[nodeAddr][neighborAddr] {
+		if cell.Equals(&schedule_cell) {
+			return true
+		}
+	}
+	return false
 }
 
 // ----- INTERNAL ----
