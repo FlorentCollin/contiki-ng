@@ -1,3 +1,8 @@
+from xml.dom.minidom import parseString
+from sys import argv
+import copy
+
+template_csc_file = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <simconf>
   <project EXPORT="discard">[APPS_DIR]/mrm</project>
@@ -48,7 +53,7 @@
       org.contikios.cooja.contikimote.ContikiMoteType
       <identifier>mtype198</identifier>
       <description>Client</description>
-      <source>[CONTIKI_DIR]/project/udp/udp-client.c</source>
+      <source>[CONTIKI_DIR]/project/client/udp-client.c</source>
       <commands>make udp-client.cooja TARGET=cooja -j8</commands>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
@@ -69,48 +74,6 @@
       <moteinterface>org.contikios.cooja.interfaces.MoteAttributes</moteinterface>
       <symbols>false</symbols>
     </motetype>
-    <mote>
-      <interface_config>
-        org.contikios.cooja.interfaces.Position
-        <x>40.52364477279104</x>
-        <y>48.56266601779193</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiMoteID
-        <id>1</id>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiRadio
-        <bitrate>250.0</bitrate>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiEEPROM
-        <eeprom>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==</eeprom>
-      </interface_config>
-      <motetype_identifier>mtype522</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        org.contikios.cooja.interfaces.Position
-        <x>78.66608590859774</x>
-        <y>50.538686642274406</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiMoteID
-        <id>2</id>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiRadio
-        <bitrate>250.0</bitrate>
-      </interface_config>
-      <interface_config>
-        org.contikios.cooja.contikimote.interfaces.ContikiEEPROM
-        <eeprom>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==</eeprom>
-      </interface_config>
-      <motetype_identifier>mtype198</motetype_identifier>
-    </mote>
   </simulation>
   <plugin>
     org.contikios.cooja.plugins.SimControl
@@ -165,46 +128,8 @@
   <plugin>
     org.contikios.cooja.plugins.ScriptRunner
     <plugin_config>
-      <script>
-/* Example Contiki test script (JavaScript).
- * A Contiki test script acts on mote output, such as via printf()'s.
- * The script may operate on the following variables:
- *  Mote mote, int id, String msg
- */
-
-TIMEOUT(1800000, log.testOK());
-var speedLimit = 10;
-sim.setSpeedLimit(speedLimit);
-var completed = {};
-var scheduleMsg = "schedule_updater_pkt";
-var firstScheduleMsgTime = 0;
-var completeMsg = "pkt->type = complete";
-var motesCount = mote.getSimulation().getMotesCount();
-
-while(true) {
-    log.log(id + ":" + msg + "\n");
-    if (msg.contains(completeMsg)) {
-        completed[id] = true;
-        if (Object.keys(completed).length >= motesCount) {
-            break;
-        }
-    } else if (firstScheduleMsgTime == 0) {
-        if (msg.contains(scheduleMsg)) {
-            firstScheduleMsgTime =  time;
-        }
-    }
-    YIELD();
-}
-log.log("First schedule message received at time: " + firstScheduleMsgTime + "\n");
-var endTime = time;
-log.log("Simulation finished at time: " + time + "\n");
-log.log("Number of secondes to install the new schedule: " + ((endTime - firstScheduleMsgTime) / 1000 / 1000 / speedLimit) + "\n");
-
-GENERATE_MSG(10000, "sleep"); //Wait for two sec
-YIELD_THEN_WAIT_UNTIL(msg.equals("sleep"));
-log.testOK();
-</script>
-      <active>false</active>
+      <scriptfile>[CONFIG_DIR]/script.js</scriptfile>
+      <active>true</active>
     </plugin_config>
     <width>600</width>
     <z>0</z>
@@ -213,4 +138,68 @@ log.testOK();
     <location_y>56</location_y>
   </plugin>
 </simconf>
+"""
 
+moteXML = """\
+<mote>
+  <interface_config>
+    org.contikios.cooja.interfaces.Position
+    <x>0.0</x>
+    <y>0.0</y>
+    <z>0.0</z>
+  </interface_config>
+  <interface_config>
+    org.contikios.cooja.contikimote.interfaces.ContikiMoteID
+    <id>1</id>
+  </interface_config>
+  <interface_config>
+    org.contikios.cooja.contikimote.interfaces.ContikiRadio
+    <bitrate>250.0</bitrate>
+  </interface_config>
+  <interface_config>
+    org.contikios.cooja.contikimote.interfaces.ContikiEEPROM
+    <eeprom>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==</eeprom>
+  </interface_config>
+  <motetype_identifier>mtype</motetype_identifier>
+</mote>
+"""
+
+def add_mote(simulation, motetype_identifier, id, x, y):
+    # should use xpath, but it works well 🙃
+    mote = copy.deepcopy(parseString(moteXML))
+    mote.getElementsByTagName("motetype_identifier")[0].firstChild.data = motetype_identifier
+    interfaces_config = mote.getElementsByTagName("interface_config")
+    interfaces_config[0].getElementsByTagName("x")[0].firstChild.data = x
+    interfaces_config[0].getElementsByTagName("y")[0].firstChild.data = y
+    interfaces_config[1].getElementsByTagName("id")[0].firstChild.data = id
+    simulation.getElementsByTagName("simulation")[0].appendChild(copy.deepcopy(mote.firstChild))
+
+def find_motetype_identifier_by_description(simulation, description):
+    motetypes = simulation.getElementsByTagName("motetype")
+    for motetype in motetypes:
+        try:
+            if motetype.getElementsByTagName("description")[0].firstChild.data == description:
+                return motetype.getElementsByTagName("identifier")[0].firstChild.data
+        except:
+            pass
+    raise ValueError(f"Could not find motetype with description: {description}")
+    
+def find_transmission_range(simulation):
+    return float(simulation.getElementsByTagName("transmitting_range")[0].firstChild.data)
+
+
+def change_script_filename(simulation, script_filename):
+    scriptNode = simulation.getElementsByTagName("scriptfile")[0]
+    scriptNode.data = f"[CONFIG_DIR]/{script_filename}"
+
+if __name__ == "__main__":
+    simulation = parseString(template_csc_file)
+    client_identifier = find_motetype_identifier_by_description(simulation, "Client")
+    proxy_identifier = find_motetype_identifier_by_description(simulation, "Proxy")
+    transmission_range = find_transmission_range(simulation)
+    motes_count = int(argv[1])
+    add_mote(simulation, proxy_identifier, 1, 0.0, 0.0)
+    for i in range(2, motes_count + 1):
+        add_mote(simulation, client_identifier, i, transmission_range * (i - 1), 0.0)
+    print(simulation.toxml())
+    
