@@ -6,18 +6,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 )
 
 type BandwidthMap map[udpack.IPString]uint
 type ApplicationBandwidth struct {
 	Bandwith BandwidthMap
 	nClients uint
+	lock     sync.RWMutex
 }
 
 func NewApplicationBandwidth(nClients uint) ApplicationBandwidth {
 	return ApplicationBandwidth{
 		Bandwith: make(BandwidthMap),
 		nClients: nClients,
+		lock:     sync.RWMutex{},
 	}
 }
 
@@ -31,6 +34,8 @@ func (app *ApplicationBandwidth) ProcessPacket(addr *net.UDPAddr, packet []byte)
 	if err != nil {
 		log.Panic(err)
 	}
+	app.lock.Lock()
+	defer app.lock.Unlock()
 	app.Bandwith[addrIP] = bandwith
 }
 
