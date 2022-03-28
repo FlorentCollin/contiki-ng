@@ -11,8 +11,8 @@ import (
 // can be flying at the same time.
 type UDPAckConn struct {
 	conn                     *net.UDPConn
-	receivedSequencesNumbers SequencesNumbersMap
-	sentSequencesNumbers     SequencesNumbersMap
+	receivedSequencesNumbers SequenceNumbersMap
+	sentSequencesNumbers     SequenceNumbersMap
 	config                   *UDPAckConnSendConfig
 	ackChannels              map[IPString]chan []byte
 }

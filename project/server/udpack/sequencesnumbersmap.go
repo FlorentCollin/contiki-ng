@@ -3,6 +3,7 @@ package udpack
 import (
 	"net"
 	"strings"
+	"sync"
 )
 
 type IPString string
@@ -26,27 +27,39 @@ func (ipString IPString) LinkLocalToGlobal() IPString {
 	return IPString(strings.Replace(string(ipString), "fe80", "fd00", 1))
 }
 
-type SequencesNumbersMap map[IPString]uint8
+const maxSequenceNumber = 0b00111111
 
-func (sequenceNumberMap SequencesNumbersMap) initializeAddrIP(addrIP IPString) uint8 {
+type SequenceNumbersMap struct {
+	expectedSequenceNumbers map[IPString]uint8
+	lock                    sync.RWMutex
+}
+
+func NewSequenceNumbersMap() SequenceNumbersMap {
+	return SequenceNumbersMap{
+		expectedSequenceNumbers: make(map[IPString]uint8),
+		lock:                    sync.RWMutex{},
+	}
+}
+
+func (sequenceNumberMap *SequenceNumbersMap) initializeAddrIP(addrIP IPString) uint8 {
 	initialSequenceNumber := uint8(1)
-	sequenceNumberMap[addrIP] = initialSequenceNumber
+	sequenceNumberMap.expectedSequenceNumbers[addrIP] = initialSequenceNumber
 	return initialSequenceNumber
 }
 
-func (sequenceNumberMap SequencesNumbersMap) increment(addrIP IPString, currentSequenceNumber uint8) {
+func (sequenceNumberMap *SequenceNumbersMap) increment(addrIP IPString, currentSequenceNumber uint8) {
+	sequenceNumberMap.lock.RLock()
+	defer sequenceNumberMap.lock.RUnlock()
 	if currentSequenceNumber > maxSequenceNumber {
-		sequenceNumberMap[addrIP] = 0
+		sequenceNumberMap.expectedSequenceNumbers[addrIP] = 0
 		return
 	}
-	sequenceNumberMap[addrIP] += 1
+	sequenceNumberMap.expectedSequenceNumbers[addrIP] += 1
 }
 
-func (sequenceNumberMap SequencesNumbersMap) expected(addrIP IPString) uint8 {
-	if expectedSequenceNumber, in := sequenceNumberMap[addrIP]; in {
+func (sequenceNumberMap *SequenceNumbersMap) expected(addrIP IPString) uint8 {
+	if expectedSequenceNumber, in := sequenceNumberMap.expectedSequenceNumbers[addrIP]; in {
 		return expectedSequenceNumber
 	}
 	return sequenceNumberMap.initializeAddrIP(addrIP)
 }
-
-const maxSequenceNumber = 0b01111111
