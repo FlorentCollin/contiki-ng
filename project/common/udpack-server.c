@@ -9,7 +9,7 @@
 #define LOG_MODULE "UDPAckServer"
 #define LOG_LEVEL LOG_LEVEL_WARN
 
-#define SEND_BUFFER_SIZE 512
+#define SEND_BUFFER_SIZE 127
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
 static int send_ready = 0;
 static uint16_t send_buffer_len;
@@ -155,14 +155,31 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
     PROCESS_END();
 }
 
-// send_server sends a packet to the server. The packet is created
-// using the encoder function which must encode the packet to send into
-// the buffer and return the number of bytes inserted into it.
-void send_server(uint16_t encoder(uint8_t *buffer)) {
+
+void init_udpack_server() {
     static int first_call = 1;
     if (first_call != 0) {
         first_call = 0;
         process_start(&udpack_process, NULL);
     }
+}
+
+void send_server_ack(uint16_t encoder(uint8_t *buffer)) {
+    init_udpack_server();
     process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
+}
+
+// send_server sends a packet to the server without waiting for an ACK.
+// The packet is created // using the encoder function which must encode 
+// the packet to send into the buffer and return the number of bytes 
+// inserted into it.
+void send_server(uint16_t encoder(uint8_t *buffer)) {
+    init_udpack_server();
+    process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
+    static uint8_t buffer[SEND_BUFFER_SIZE] = {0};
+    Header header = new_header(PacketTypeDataNoACK);
+    buffer[0] = header;
+    uint16_t len = sizeof(header);
+    len += encoder(buffer + len);
+    simple_udp_send(&udp_conn, &buffer, len);
 }
