@@ -10,7 +10,7 @@
 
 
 #define LOG_MODULE "BandwidthApplication"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 PROCESS(bandwidth_application, "Bandwidth Application");
 

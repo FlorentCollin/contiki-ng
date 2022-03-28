@@ -13,7 +13,7 @@
 #include "bandwidth-application.h"
 
 #define LOG_MODULE "Proxy"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	3000

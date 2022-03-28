@@ -3,12 +3,13 @@
 
 #include "contiki.h"
 
-#define SEQUENCE_NUMBER_MAX 0b01111111
+#define SEQUENCE_NUMBER_MAX 0b00111111
 
 typedef uint8_t Header;
 
 enum PacketType {
     PacketTypeData,
+    PacketTypeDataNoACK,
     PacketTypeAck
 };
 
@@ -17,7 +18,9 @@ uint16_t new_ack_packet(uint8_t* packet_buffer, uint8_t sequence_number);
 
 uint16_t new_data_packet(uint8_t* packet_buffer, uint8_t sequence_number);
 
-Header new_header(enum PacketType packet_type, uint8_t sequence_number);
+Header new_header_with_sequence_number(enum PacketType packet_type, uint8_t sequence_number);
+
+Header new_header(enum PacketType packet_type);
 
 void encode_packet_type(Header* header, enum PacketType packet_type);
 

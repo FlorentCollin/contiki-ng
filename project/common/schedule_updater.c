@@ -7,7 +7,7 @@
 #include "net/mac/tsch/tsch-schedule.h"
 
 #define LOG_MODULE "schedule_updater"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 uint16_t schedule_updater_pkt_size_needed(struct schedule_updater_pkt *pkt) {
     return sizeof(pkt->type) 
@@ -96,7 +96,7 @@ static uint16_t other_slotframe_handle(uint16_t current_slotframe_handle) {
 }
 
 void update_pkt_dispatch(const uint8_t *pkt) {
-    update_pkt_log(pkt);
+    update_pkt_log_type(pkt);
     static uint16_t slotframe_handle = 1;
     static bool in_update = false;
     static struct tsch_slotframe* slotframe = NULL;
@@ -147,6 +147,17 @@ void update_pkt_log(const uint8_t *pkt) {
                 LOG_INFO("       (%d) channel = %d\n", i, update_pkt_cell_channel(pkt, i));
                 LOG_INFO("\n");
             }
+            break;
+    }
+}
+
+void update_pkt_log_type(const uint8_t *pkt) {
+    switch (update_pkt_type(pkt)) {
+        case schedule_updater_pkt_type_update_complete:
+            LOG_WARN("pkt->type = complete\n");
+            break;
+        case schedule_updater_pkt_type_update:
+            LOG_WARN("pkt->type = update\n");
             break;
     }
 }

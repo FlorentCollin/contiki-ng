@@ -7,7 +7,7 @@
 #include "schedule_updater.h"
 
 #define LOG_MODULE "UDPAckServer"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 #define SEND_BUFFER_SIZE 512
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
@@ -33,7 +33,7 @@ static void udp_rx_callback(struct simple_udp_connection *c,
                             const uint8_t *data,
                             uint16_t datalen) {
     if (datalen < 2) {
-        LOG_ERR("Datalen is < 2 and therefore not packet number could be read from the data\n");
+        LOG_ERR("Datalen is < 2 and therefore no packet number could be read from the data\n");
         return;
     }
     Header header;
@@ -71,6 +71,9 @@ static void ack_middleware(struct simple_udp_connection *c,
     Header header = 0;
     remove_header_from_packet(data, &header);
     enum PacketType packet_type = decode_packet_type(header);
+    uint8_t sequence_number = decode_sequence_number(header);
+    LOG_INFO("PacketType: %d\n", packet_type);
+    LOG_INFO("PacketSequenceNumber: %d\n", sequence_number);
     if (packet_type == PacketTypeAck) {
         LOG_INFO("Received an ACK polling udpack_process\n");
         ack_sequence_number = decode_sequence_number(header);

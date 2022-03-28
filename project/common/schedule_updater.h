@@ -57,4 +57,6 @@ void update_pkt_dispatch(const uint8_t *pkt);
 
 void update_pkt_log(const uint8_t *pkt);
 
+void update_pkt_log_type(const uint8_t *pkt);
+
 #endif /* SCHEDULE_UPDATER_H_ */

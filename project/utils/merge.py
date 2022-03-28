@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     plt.close()
 
-    sns.histplot(data=merged_stats["scheduleInstallationTime"], bins=10, kde=True)
+    sns.histplot(data=merged_stats["scheduleInstallationTime"], bins=6)
     plt.show()
     print(merged_stats["scheduleInstallationTime"])
     print(merged_stats["scheduleInstallationTime"].mean())

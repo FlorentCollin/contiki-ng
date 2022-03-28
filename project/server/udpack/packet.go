@@ -9,6 +9,7 @@ type PacketType uint8
 
 const (
 	PacketTypeData = iota
+	PacketTypeDataNoACK
 	PacketTypeAck
 )
 
@@ -31,6 +32,17 @@ func newDataPacket(sequenceNumber uint8, packet []byte) ([]byte, error) {
 	return packetWithHeader, nil
 }
 
+func newDataNoACKPacket(packet []byte) ([]byte, error) {
+	header, err := newHeader(PacketTypeDataNoACK, 0)
+	if err != nil {
+		return nil, err
+	}
+	packetWithHeader := make([]byte, len(packet)+1)
+	packetWithHeader[0] = byte(header)
+	copy(packetWithHeader[1:], packet)
+	return packetWithHeader, nil
+}
+
 type Header uint8
 
 func newHeader(packetType PacketType, sequenceNumber uint8) (Header, error) {
@@ -43,26 +55,19 @@ func newHeader(packetType PacketType, sequenceNumber uint8) (Header, error) {
 	return header, nil
 }
 
+const packetTypeShift uint8 = 6
+
 func (header *Header) encodePacketType(packetType PacketType) {
-	const packetTypeShift uint8 = 7
-	if packetType == PacketTypeData {
-		*header |= Header(uint8(PacketTypeData) << packetTypeShift)
-	} else if packetType == PacketTypeAck {
-		*header |= Header(uint8(PacketTypeAck) << packetTypeShift)
-	}
+	*header |= Header(packetType << packetTypeShift)
 }
 
 func DecodePacketType(header Header) PacketType {
-	const packetTypeMask uint8 = 0x80
-	isAck := header&Header(packetTypeMask) != 0
-	if isAck {
-		return PacketTypeAck
-	}
-	return PacketTypeData
+	const packetTypeMask uint8 = 0b11000000
+	return PacketType((header & Header(packetTypeMask)) >> packetTypeShift)
 }
 
 func (header *Header) encodeSequenceNumber(sequenceNumber uint8) error {
-	const maxSequenceNumber = 0b01111111
+	const maxSequenceNumber = 0b00111111
 	if sequenceNumber > maxSequenceNumber {
 		return errors.New(fmt.Sprintf(
 			"The sequence number given %d is greater than the maximum sequence number authorized which is %d",
@@ -74,17 +79,17 @@ func (header *Header) encodeSequenceNumber(sequenceNumber uint8) error {
 }
 
 func decodeSequenceNumber(header Header) uint8 {
-	const sequenceNumberMask = 0x7F
+	const sequenceNumberMask = 0b00111111
 	return uint8(header) & sequenceNumberMask
 }
 
 // RemoveHeaderFromPacket remove the header that contains a PacketType and a SequenceNumber
 // The header is a byte that has the following structure:
-// 0b1 0000111
-//   ^ ^^^^^^^
+// 0b01 000111
+//   ^ ^^^^^^
 //   | |
-//   | +------------ Sequence Number (last 7 bits)
-//   +-- PacketType (first bit)
+//   | +------------ Sequence Number (last 6 bits)
+//   +-- PacketType (two bits)
 func RemoveHeaderFromPacket(packet []byte) (Header, []byte) {
 	return Header(packet[0]), packet[1:]
 }

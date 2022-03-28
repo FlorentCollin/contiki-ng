@@ -12,7 +12,7 @@
 #include "packet.h"
 
 #define LOG_MODULE "GraphApplication"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 PROCESS(graph_application, "Graph Application");
 

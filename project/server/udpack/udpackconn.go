@@ -23,16 +23,17 @@ func NewUDPAckServer(conn *net.UDPConn, config *UDPAckConnSendConfig) *UDPAckCon
 	}
 	return &UDPAckConn{
 		conn:                     conn,
-		receivedSequencesNumbers: make(SequencesNumbersMap),
-		sentSequencesNumbers:     make(SequencesNumbersMap),
+		receivedSequencesNumbers: NewSequenceNumbersMap(),
+		sentSequencesNumbers:     NewSequenceNumbersMap(),
 		config:                   config,
 		ackChannels:              make(map[IPString]chan []byte),
 	}
 }
 
-// UDPAckServerHandler is the callback called when receinving a packet. The
-// packet can be of two types `PacketTypeData` which corresponds to a data packet
-// and `PacketTypeAck` which corresponds to an Ack packet. The Ack packet must be
+// UDPAckServerHandler is the callback called when receiving a packet. The
+// packet can be of three types `PacketTypeData` which corresponds to a data packet,
+// `PacketTypeDataNoACK` which is a data packet wich doesn't need an ACK
+// and `PacketTypeAck` which corresponds to an ACK packet. The Ack packet must be
 // processed by the handler and resent the latest packet if the sequence number
 // contained in the Ack is not the sequence number expected.
 type UDPAckServerHandler = func(addr *net.UDPAddr, packet []byte)
@@ -126,7 +127,11 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 	addrIP := AddrToIPString(addr)
 	packetHeader, packetWithoutHeader := RemoveHeaderFromPacket(packet)
 	packetType := DecodePacketType(packetHeader)
-	utils.Log.InfoPrintln("Packet Type:", [...]string{"Data", "ACK"}[packetType])
+	utils.Log.InfoPrintln("Packet Type:", [...]string{"Data", "DataNoACK", "ACK"}[packetType])
+	if packetType == PacketTypeDataNoACK {
+		handler(addr, packetWithoutHeader)
+		return nil
+	}
 
 	sequenceNumber := decodeSequenceNumber(packetHeader)
 	utils.Log.InfoPrintln("Sequence number associated with the packet:", sequenceNumber)

@@ -10,7 +10,7 @@
 
 
 #define LOG_MODULE "TopologyApplication"
-#define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_WARN
 
 PROCESS(topology_application, "Topology Application");
 

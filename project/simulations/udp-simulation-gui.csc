@@ -48,7 +48,7 @@
       org.contikios.cooja.contikimote.ContikiMoteType
       <identifier>mtype313</identifier>
       <description>Client</description>
-      <source>[CONTIKI_DIR]/project/udp/udp-client.c</source>
+      <source>[CONTIKI_DIR]/project/client/udp-client.c</source>
       <commands>make udp-client.cooja TARGET=cooja -j8</commands>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
