@@ -16,8 +16,8 @@ func NetIPToIPString(addr net.IP) IPString {
 }
 
 func (ipString IPString) GlobalToLinkLocal() IPString {
-    // TODO: Normally this should not be done, we need a better way to translate link local to global addresses.
-    return IPString(strings.Replace(string(ipString), "fd00", "fe80", 1))
+	// TODO: Normally this should not be done, we need a better way to translate link local to global addresses.
+	return IPString(strings.Replace(string(ipString), "fd00", "fe80", 1))
 }
 
 func (ipString IPString) LinkLocalToGlobal() IPString {
@@ -49,4 +49,4 @@ func (sequenceNumberMap SequencesNumbersMap) expected(addrIP IPString) uint8 {
 	return sequenceNumberMap.initializeAddrIP(addrIP)
 }
 
-const maxSequenceNumber = 1 << 7
+const maxSequenceNumber = 0b01111111
