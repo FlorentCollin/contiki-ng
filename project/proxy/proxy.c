@@ -35,7 +35,7 @@ PROCESS_THREAD(proxy_process, ev, data) {
         graph_application_start();
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         etimer_reset(&timer);
-        bandwidth_application_start(2);
+        bandwidth_application_start(10);
     } else {
         LOG_ERR("The proxy border should be the node with id 1\n");
     }

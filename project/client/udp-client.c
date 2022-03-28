@@ -56,7 +56,7 @@ PROCESS_THREAD(udp_client_process, ev, data) {
     PROCESS_BEGIN();
     initialize_tsch_schedule();
     topology_application_start();
-    bandwidth_application_start(2);
+    bandwidth_application_start(10);
     PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

@@ -2,8 +2,8 @@ package applications
 
 import (
 	"coap-server/udpack"
+	"coap-server/utils"
 	"encoding/binary"
-	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -29,7 +29,7 @@ func (app *ApplicationGraph) Type() AppType {
 }
 
 func (app *ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
-	log.Println("Processing graph packet...")
+	utils.Log.Println("Processing graph packet...")
 	graphUpdates := decodeGraphUpdateData(packet)
 	for _, update := range graphUpdates {
 		app.updateGraph(&update)
@@ -37,9 +37,9 @@ func (app *ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
 }
 
 func (app *ApplicationGraph) Ready() bool {
-	log.Println("Current GRAPH SIZE: ", len(app.Graph))
+	utils.Log.Println("Current GRAPH SIZE: ", len(app.Graph))
 	if len(app.Graph) > int(app.nClients-1) {
-		fmt.Println("Something wrong...")
+		utils.Log.ErrorPrintln("Something wrong...")
 	}
 	return len(app.Graph) == int(app.nClients-1) // -1 since we count the number of links
 }

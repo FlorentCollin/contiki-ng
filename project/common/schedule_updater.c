@@ -71,16 +71,21 @@ void update_pkt_add_cells(const uint8_t *pkt, struct tsch_slotframe *sf) {
         uint16_t timeslot = update_pkt_cell_timeslot(pkt, i);
         uint16_t channel = update_pkt_cell_channel(pkt, i);
         uip_ip6addr_t neighbor_uip_addr = update_pkt_neighbor_addr(pkt);
+        uint16_t link_local = 0x80FE; // little endian for 0xFE80
+        memcpy(&neighbor_uip_addr, &link_local, sizeof(link_local));
+        LOG_INFO_6ADDR(&neighbor_uip_addr);
+        printf("\n");
         uip_ds6_nbr_t* uip_nbr = uip_ds6_nbr_lookup(&neighbor_uip_addr);
+
         if (uip_nbr == NULL) {
-            LOG_ERR("Error while adding a new link\n");
+            LOG_ERR("Error while adding a new link, could not find the neighbor link local addr\n");
             continue;
         }
         linkaddr_t* neighbor_addr = (linkaddr_t *) uip_ds6_nbr_get_ll(uip_nbr);
         struct tsch_link *err = tsch_schedule_add_link(sf, link_options, LINK_TYPE_NORMAL, 
                 neighbor_addr, timeslot, channel, 1);
         if (err == NULL) {
-            LOG_ERR("Error while adding a new link\n");
+            LOG_ERR("Error while adding a new link, tsch_schedule_add_link\n");
         }
     }
 }
@@ -99,7 +104,7 @@ void update_pkt_dispatch(const uint8_t *pkt) {
     switch (update_pkt_type(pkt)) {
         case schedule_updater_pkt_type_update:
             if (!in_update) {
-                slotframe = tsch_schedule_add_slotframe(1, 21);
+                slotframe = tsch_schedule_add_slotframe(slotframe_handle, 21);
                 in_update = true;
             }
             if (slotframe == NULL) {

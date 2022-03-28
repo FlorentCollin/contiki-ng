@@ -34,8 +34,13 @@ type Logger struct {
 	color    Color
 }
 
-func NewLogger(logLevel LogLevel, color Color) Logger {
-	return Logger{logLevel: logLevel, color: color}
+var Log *Logger
+
+func NewLogger(logLevel LogLevel, color Color) *Logger {
+	if Log == nil {
+		Log = &Logger{logLevel: logLevel, color: color}
+	}
+	return Log
 }
 
 func (l *Logger) Print(v ...interface{}) {
@@ -47,11 +52,11 @@ func (l *Logger) Println(v ...interface{}) {
 }
 
 func (l *Logger) ColorPrint(color Color, v ...interface{}) {
-	l.ColorLevelPrint(l.logLevel, color, v...)
+	l.ColorLevelPrint(LogLevelInfo, color, v...)
 }
 
 func (l *Logger) ColorPrintln(color Color, v ...interface{}) {
-	l.ColorLevelPrintln(l.logLevel, color, v...)
+	l.ColorLevelPrintln(LogLevelInfo, color, v...)
 }
 
 func (l *Logger) ColorLevelPrint(logLevel LogLevel, color Color, v ...interface{}) {

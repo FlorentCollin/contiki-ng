@@ -2,6 +2,7 @@ package applications
 
 import (
 	"coap-server/udpack"
+	"coap-server/utils"
 	"errors"
 	"fmt"
 	"log"
@@ -25,7 +26,7 @@ func (app *ApplicationTopology) Type() AppType {
 }
 
 func (app *ApplicationTopology) ProcessPacket(addr *net.UDPAddr, packet []byte) {
-	log.Println("Received a topology packet")
+	utils.Log.Println("Received a topology packet")
 	addrIP := udpack.AddrToIPString(addr)
 	topologyPacket, err := decodeTopologyPacket(packet)
 	if err != nil {
@@ -70,7 +71,7 @@ func (topology Topology) AddNeighbor(addrIP, neighborIP udpack.IPString) {
 }
 
 func (topology Topology) SetNeighbors(addrIP udpack.IPString, neighborsIP []udpack.IPString) {
-	log.Println("Settings new neighbors")
+	utils.Log.Println("Settings new neighbors")
 	topology[addrIP] = neighborsIP
 }
 

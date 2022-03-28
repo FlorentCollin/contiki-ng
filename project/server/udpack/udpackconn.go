@@ -47,7 +47,7 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 			return err
 		}
 		remoteAddrString := remote.IP.String()
-		logger.InfoPrintln("Message received from ", remoteAddrString)
+		utils.Log.InfoPrintln("Message received from ", remoteAddrString)
 		packet := buffer[:rlen]
 
 		err = udpAckConn.handlePacket(remote, packet, handler)
@@ -58,7 +58,7 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 }
 
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
-	logger.InfoPrintln("Size of the packet to send: ", len(packet))
+	utils.Log.InfoPrintln("Size of the packet to send: ", len(packet))
 	addrIP := AddrToIPString(addr)
 	ackChan, in := udpAckConn.ackChannels[addrIP]
 	if !in {
@@ -70,14 +70,14 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 	if err != nil {
 		return err
 	}
-	logger.InfoPrintln("Size of packet: ", len(packetWithHeader))
+	utils.Log.InfoPrintln("Size of packet: ", len(packetWithHeader))
 	config := udpAckConn.config
 	conn := udpAckConn.conn
 	for i := 0; i < config.MaxRetries; i++ {
 		_, err = conn.WriteTo(packetWithHeader, addr)
 		if err != nil {
-			logger.ErrorPrintln("Error while trying to send the packet to the udpack: ", err)
-			logger.ErrorPrintln("Retrying in ", config.TimesBetweenRetries)
+			utils.Log.ErrorPrintln("Error while trying to send the packet to the udpack: ", err)
+			utils.Log.ErrorPrintln("Retrying in ", config.TimesBetweenRetries)
 			time.Sleep(config.TimesBetweenRetries)
 		} else {
 			break
@@ -93,23 +93,23 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 			header, _ := RemoveHeaderFromPacket(pkt)
 			sequenceNumber := decodeSequenceNumber(header)
 			expectedSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
-			logger.InfoPrintln("Expecting ACK: ", expectedSequenceNumber, " got ", sequenceNumber, '\n')
+			utils.Log.InfoPrintln("Expecting ACK: ", expectedSequenceNumber, " got ", sequenceNumber, '\n')
 			if sequenceNumber == expectedSequenceNumber {
-				logger.InfoPrintln("ACK correctly received")
+				utils.Log.InfoPrintln("ACK correctly received")
 				udpAckConn.sentSequencesNumbers.increment(addrIP, expectedSequenceNumber)
 				return nil // Client correctly received the pktToSend
 			} else if sequenceNumber < expectedSequenceNumber {
-				logger.InfoPrintln("Already received this ack -> doing nothing")
+				utils.Log.InfoPrintln("Already received this ack -> doing nothing")
 			} else {
-				logger.InfoPrintln("Ack received that was not the expected Ack, resending the packet")
-				logger.InfoPrintln("Message received: ", string(pkt))
+				utils.Log.InfoPrintln("Ack received that was not the expected Ack, resending the packet")
+				utils.Log.InfoPrintln("Message received: ", string(pkt))
 				_, err := conn.WriteTo(packetWithHeader, addr)
 				if err != nil {
 					return err
 				}
 			}
 		case <-time.After(config.Timeout):
-			logger.WarningPrintln("Timeout on addr", addr.IP.String(), "resending pkt\n")
+			utils.Log.WarningPrintln("Timeout on addr", addr.IP.String(), "resending pkt\n")
 			_, err := conn.WriteTo(packetWithHeader, addr)
 			if err != nil {
 				return err
@@ -126,10 +126,10 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 	addrIP := AddrToIPString(addr)
 	packetHeader, packetWithoutHeader := RemoveHeaderFromPacket(packet)
 	packetType := DecodePacketType(packetHeader)
-	logger.InfoPrintln("Packet Type:", [...]string{"Data", "ACK"}[packetType])
+	utils.Log.InfoPrintln("Packet Type:", [...]string{"Data", "ACK"}[packetType])
 
 	sequenceNumber := decodeSequenceNumber(packetHeader)
-	logger.InfoPrintln("Sequence number associated with the packet:", sequenceNumber)
+	utils.Log.InfoPrintln("Sequence number associated with the packet:", sequenceNumber)
 	if packetType == PacketTypeAck {
 		udpAckConn.handleAck(addrIP, packet)
 		return nil
@@ -140,16 +140,16 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 			// Rejects the incoming packet because it doesn't contain the expected sequence
 			// number and the sequence number corresponds to a future packet. Doesn't return
 			// an error because we just need to wait for the correct package to arrive
-			logger.WarningPrintln("The sequence number received is greather than the expected sequence number, therefore we do nothing and wait for the precedents packages to arrive")
+			utils.Log.WarningPrintln("The sequence number received is greather than the expected sequence number, therefore we do nothing and wait for the precedents packages to arrive")
 			return nil
 		} else {
-			logger.WarningPrintln("Already received this sequence number, sending the Ack")
+			utils.Log.WarningPrintln("Already received this sequence number, sending the Ack")
 			// We already received this packet, therefore we just send out the Ack to notify
 			// the Addr that we correctly received the packet
 			return udpAckConn.sendAck(addr, sequenceNumber)
 		}
 	}
-	logger.InfoPrintln("Received the expected sequence number, normal handler is called")
+	utils.Log.InfoPrintln("Received the expected sequence number, normal handler is called")
 	// We received the packet with the expected sequence number, therefore we
 	// dispatch it to the handler and send out the Ack.
 	err := udpAckConn.sendAck(addr, sequenceNumber)
@@ -164,7 +164,7 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 }
 
 func (udpAckConn *UDPAckConn) sendAck(addr *net.UDPAddr, sequenceNumber uint8) error {
-	logger.InfoPrintln("Sending the ACK to ", addr, " with sequence number ", sequenceNumber, "\n")
+	utils.Log.InfoPrintln("Sending the ACK to ", addr, " with sequence number ", sequenceNumber, "\n")
 	ackPacket, err := newAckPacket(sequenceNumber)
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (udpAckConn *UDPAckConn) handleAck(addrIP IPString, packet []byte) {
 		case ackChan <- packet:
 			break
 		default:
-			logger.WarningPrintln("Dropping the ACK because no goroutine is currently listening to ACK channel")
+			utils.Log.WarningPrintln("Dropping the ACK because no goroutine is currently listening to ACK channel")
 		}
 	}
 }
@@ -197,5 +197,3 @@ func newDefaultUDPAckConnSendConfig() *UDPAckConnSendConfig {
 		Timeout:             4 * time.Second,
 	}
 }
-
-var logger = utils.NewLogger(utils.LogLevelInfo, utils.WHITE)

@@ -89,8 +89,17 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 	}
 }
 
+type LinkOptions uint8
+
+const (
+	LinkOptionTX          = 1
+	LinkOptionRX          = 2
+	LinkOptionShared      = 4
+	LinkOptionTimeKeeping = 8
+)
+
 type Cell struct {
-	LinkOptions uint8
+	LinkOptions LinkOptions
 	TimeSlot    uint16
 	Channel     uint16
 }
@@ -126,8 +135,7 @@ func (pkt *UpdateRequest) Encode() []byte {
 	}
 	buffer = append(buffer, uint8(len(pkt.Cells)))
 	for i := 0; i < len(pkt.Cells); i++ {
-		buffer = append(buffer, pkt.Cells[i].LinkOptions)
-		fmt.Println("\033[1;33m", pkt.Cells[i].TimeSlot, pkt.Cells[i].Channel, "\033[0m")
+		buffer = append(buffer, uint8(pkt.Cells[i].LinkOptions))
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].TimeSlot)
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].Channel)
 	}
@@ -150,19 +158,19 @@ func NewSchedule() Schedule {
 	return make(Schedule)
 }
 
-func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neihborAddr udpack.IPString, cell *Cell) {
+func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) {
 	schedule := *schedulePtr
 	mapCells, in := schedule[nodeAddr]
 	if !in {
 		mapCells = make(map[udpack.IPString][]Cell)
 		schedule[nodeAddr] = mapCells
 	}
-	cells, in := mapCells[neihborAddr]
+	cells, in := mapCells[neighborAddr]
 	if !in {
 		cells = []Cell{}
-		mapCells[neihborAddr] = cells
+		mapCells[neighborAddr] = cells
 	}
-	mapCells[neihborAddr] = append(cells, *cell)
+	mapCells[neighborAddr] = append(cells, *cell)
 }
 
 func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error) {
@@ -187,9 +195,9 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 	return pkts, nil
 }
 
-func (schedule Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) bool {
-	for _, schedule_cell := range schedule[nodeAddr][neighborAddr] {
-		if cell.Equals(&schedule_cell) {
+func (schedulePtr Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) bool {
+	for _, scheduleCell := range schedulePtr[nodeAddr][neighborAddr] {
+		if cell.Equals(&scheduleCell) {
 			return true
 		}
 	}
