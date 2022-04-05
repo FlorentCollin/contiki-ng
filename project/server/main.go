@@ -15,14 +15,15 @@ import (
 )
 
 func printHelp() {
-	fmt.Println("server [#MOTES] [PORT]")
+	fmt.Println("server [#MOTES] [FIRST_MOTE_ID] [PORT]")
 	fmt.Println("   - #MOTES the number of motes in the simulation including the border router")
+	fmt.Println("   - FIRST_MOTE_ID the id of the first mote which is the border router")
 	fmt.Println("   - PORT the server port")
 }
 
 func main() {
 	utils.NewLogger(utils.LogLevelInfo, utils.WHITE)
-	nClients, port, err := parseArgs()
+	nClients, firstMoteID, port, err := parseArgs()
 	if err != nil {
 		fmt.Println(err)
 		printHelp()
@@ -47,12 +48,13 @@ func main() {
 		Subscribe(applications.NewApplicationHelloWorld()).
 		Subscribe(&appTopology)
 
-	addrs := initializeClientsAddrs(nClients)
+	addrs := initializeClientsAddrs(nClients, firstMoteID)
 	go func() {
 		for {
 			appGraphReady := appGraph.Ready()
 			appBandwidthReady := appBandwidth.Ready()
-			if appGraphReady && appBandwidthReady {
+			appTopologyReady := appTopology.Ready()
+			if appGraphReady && appBandwidthReady && appTopologyReady {
 				break
 			}
 			if !appGraphReady {
@@ -61,9 +63,12 @@ func main() {
 			if !appBandwidthReady {
 				utils.Log.WarningPrintln("App Bandwidth is not ready yet...")
 			}
+			if !appTopologyReady {
+				utils.Log.WarningPrintln("App Topology is not ready yet...")
+			}
 			time.Sleep(time.Second * 4)
 		}
-		schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith)
+		schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
 		updater := scheduleupdater.NewUpdater(server, addrs)
 		updater.UpdateClients(&schedule)
 	}()
@@ -74,27 +79,27 @@ func main() {
 			log.Panic(err)
 		}
 	}(server)
-	fmt.Println("server listening ...")
+	fmt.Println("server listening on port ", port, " ...")
 	log.Panic(server.Serve(appDispatcher.Handler))
 }
 
 // -- INTERNAL --
 
-func initializeClientsAddrs(clientCount uint) []udpack.IPString {
+func initializeClientsAddrs(clientCount uint, firstMoteID uint) []udpack.IPString {
 	addrs := make([]udpack.IPString, clientCount)
-	for i := uint(1); i < clientCount+1; i++ {
-		fmt.Printf("Adding fd00::20%d:%d:%d:%d\n", i, i, i, i)
-		addrs[i-1] = udpack.IPString(fmt.Sprintf("fd00::20%d:%d:%d:%d", i, i, i, i))
+	for i := firstMoteID; i < firstMoteID+clientCount; i++ {
+		fmt.Printf("Adding fd00::%d:%d:%d:%d\n", 200+i, i, i, i)
+		addrs[i-firstMoteID] = udpack.IPString(fmt.Sprintf("fd00::%d:%d:%d:%d", 200+i, i, i, i))
 	}
 	return addrs
 }
 
-func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.BandwidthMap) scheduleupdater.Schedule {
+func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.BandwidthMap, topology *applications.Topology) scheduleupdater.Schedule {
 	schedule := scheduleupdater.NewSchedule()
 	for mote, bandwidth := range *bandwidthMap {
 		for i := uint(0); i < bandwidth; i++ {
 			if rplLink, in := (*graph)[mote]; in {
-				err := addOneCell(&schedule, mote, rplLink.ParentIP)
+				err := addOneCell(&schedule, mote, rplLink.ParentIP, topology)
 				if err != nil {
 					log.Panic(err)
 				}
@@ -104,7 +109,7 @@ func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.B
 	return schedule
 }
 
-func addOneCell(schedule *scheduleupdater.Schedule, mote udpack.IPString, neighbor udpack.IPString) error {
+func addOneCell(schedule *scheduleupdater.Schedule, mote udpack.IPString, neighbor udpack.IPString, topology *applications.Topology) error {
 	rxCell := scheduleupdater.Cell{
 		LinkOptions: scheduleupdater.LinkOptionRX,
 		TimeSlot:    0,
@@ -122,9 +127,23 @@ func addOneCell(schedule *scheduleupdater.Schedule, mote udpack.IPString, neighb
 			txCell.TimeSlot = timeslot
 			txCell.Channel = channel
 
-			if !schedule.IsCellUsed(mote, neighbor, &txCell) && !schedule.IsCellUsed(neighbor, mote, &rxCell) {
-				schedule.AddCell(mote, neighbor, &txCell)
-				schedule.AddCell(neighbor, mote, &rxCell)
+			cellIsFree := true
+			for _, macNeighbor := range topology.TopologyMap[mote] {
+				if schedule.IsCellUsed(mote, macNeighbor, &txCell) {
+					cellIsFree = false
+				}
+			}
+			macNeighbor, ok := topology.MacIPTranslation.FindMac(neighbor)
+			if !ok {
+				return errors.New("could not find the mac address associated with the neighbor")
+			}
+			macMote, ok := topology.MacIPTranslation.FindMac(mote)
+			if !ok {
+				return errors.New("could not find the mac address associated with the current mote")
+			}
+			if cellIsFree {
+				schedule.AddCell(mote, macNeighbor, &txCell)
+				schedule.AddCell(neighbor, macMote, &rxCell)
 				return nil
 			}
 		}
@@ -132,17 +151,21 @@ func addOneCell(schedule *scheduleupdater.Schedule, mote udpack.IPString, neighb
 	return errors.New("no available cell left")
 }
 
-func parseArgs() (uint, int, error) {
-	if len(os.Args) != 3 {
-		return 0, 0, errors.New("wrong command line usage")
+func parseArgs() (uint, uint, int, error) {
+	if len(os.Args) != 4 {
+		return 0, 0, 0, errors.New("wrong command line usage")
 	}
 	nClients, err := strconv.Atoi(os.Args[1])
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
-	port, err := strconv.Atoi(os.Args[2])
+	firstMoteID, err := strconv.Atoi(os.Args[2])
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
-	return uint(nClients), port, nil
+	port, err := strconv.Atoi(os.Args[3])
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return uint(nClients), uint(firstMoteID), port, nil
 }

@@ -1,6 +1,7 @@
 package scheduleupdater
 
 import (
+	"coap-server/addrtranslation"
 	"coap-server/udpack"
 	"coap-server/utils"
 	"errors"
@@ -27,18 +28,26 @@ func NewUpdater(conn *udpack.UDPAckConn, clients []udpack.IPString) Updater {
 
 func (updater *Updater) UpdateClients(schedule *Schedule) {
 	// helper function to check if any error and panic if any
-	panicIfErrors := func(errs <-chan error) {
-		for err := range errs {
-			if err != nil {
-				log.Panic(err.Error())
+	panicIfErrors := func(ackPackets <-chan AckPacketOrError) {
+		for ackPacket := range ackPackets {
+			if ackPacket.err != nil {
+				log.Panic(ackPacket.err.Error())
 			}
 		}
 	}
 
 	// New schedule update
-	scheduleUpdateErrors := updater.sendToEachClient(schedule.Serialize)
-	panicIfErrors(scheduleUpdateErrors)
+	scheduleUpdateAckPackets := updater.sendToEachClient(schedule.Serialize)
 	log.Println("No errors detected while sending the new schedule 🎉")
+	for ackPacket := range scheduleUpdateAckPackets {
+		if ackPacket.err != nil {
+			log.Panic(ackPacket.err.Error())
+		}
+		if ackPacket.confirmation() == AckPacketConfirmationDecline {
+			// TODO HANDLE decline
+			panic("One node declined the new schedule, the code does not handle yet this case")
+		}
+	}
 
 	// Update complete
 	updateCompleteErrors := updater.sendToEachClient(func(clientIP udpack.IPString) ([][]byte, error) {
@@ -53,25 +62,45 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 
 type Serializer = func(clientIP udpack.IPString) ([][]byte, error)
 
-func (updater *Updater) sendToEachClient(serialize Serializer) <-chan error {
+func (updater *Updater) sendToEachClient(serialize Serializer) <-chan AckPacketOrError {
 	var wg sync.WaitGroup
 	clientCount := len(updater.clients)
-	errs := make(chan error, clientCount)
+	ackPackets := make(chan AckPacketOrError, clientCount)
 	for _, clientIP := range updater.clients {
 		wg.Add(1)
-		go updater.serializeAndSend(clientIP, serialize, errs, &wg)
+		go updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
 	}
 	wg.Wait()
-	close(errs)
-	return errs
+	close(ackPackets)
+	return ackPackets
 }
 
-func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Serializer, errs chan error, wg *sync.WaitGroup) {
+type AckPacketOrError struct {
+	err    error
+	packet []byte
+}
+
+type AckPacketConfirmation byte
+
+const (
+	AckPacketConfirmationDecline = iota
+	AckPacketConfirmationOK
+)
+
+func (ackPacket *AckPacketOrError) confirmation() AckPacketConfirmation {
+	if ackPacket.packet == nil {
+		utils.Log.ErrorPrintln("AckPacket does not contain a packet")
+		return AckPacketConfirmationDecline
+	}
+	return AckPacketConfirmation(ackPacket.packet[0])
+}
+
+func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Serializer, ackPackets chan AckPacketOrError, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	pkts, err := serialize(clientIP)
 	if err != nil {
-		errs <- err
+		ackPackets <- AckPacketOrError{err: err}
 		return
 	}
 	for _, pkt := range pkts {
@@ -81,11 +110,12 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 			Port: 8765,
 			Zone: "",
 		}
-		err = updater.conn.WriteTo(pkt, udpAddr)
+		err, packet := updater.conn.WriteTo(pkt, udpAddr)
 		if err != nil {
-			errs <- err
+			ackPackets <- AckPacketOrError{err: err}
 			return
 		}
+		ackPackets <- AckPacketOrError{packet: packet}
 	}
 }
 
@@ -105,8 +135,7 @@ type Cell struct {
 }
 
 func (cell *Cell) Equals(other *Cell) bool {
-	return cell.LinkOptions == other.LinkOptions &&
-		cell.TimeSlot == other.TimeSlot &&
+	return cell.TimeSlot == other.TimeSlot &&
 		cell.Channel == other.Channel
 }
 
@@ -118,7 +147,7 @@ const (
 )
 
 type UpdateRequest struct {
-	NeighborAddr net.IP
+	NeighborAddr addrtranslation.MacAddr
 	Cells        []Cell
 }
 
@@ -152,17 +181,17 @@ func (pkt *UpdateConfirmation) Encode() []byte {
 	return []byte{uint8(pkt.Type())}
 }
 
-type Schedule map[udpack.IPString]map[udpack.IPString][]Cell
+type Schedule map[udpack.IPString]map[*addrtranslation.MacAddr][]Cell
 
 func NewSchedule() Schedule {
 	return make(Schedule)
 }
 
-func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) {
+func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) {
 	schedule := *schedulePtr
 	mapCells, in := schedule[nodeAddr]
 	if !in {
-		mapCells = make(map[udpack.IPString][]Cell)
+		mapCells = make(map[*addrtranslation.MacAddr][]Cell)
 		schedule[nodeAddr] = mapCells
 	}
 	cells, in := mapCells[neighborAddr]
@@ -184,7 +213,7 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 		log.Printf("NeighborAddr : %+v\n", neighborAddr)
 		for i := 0; i < len(neighborCells); i += ScheduleUpdaterPktMaxCells {
 			pkt := UpdateRequest{
-				NeighborAddr: net.ParseIP(string(neighborAddr)),
+				NeighborAddr: *neighborAddr,
 				Cells:        neighborCells[i:min(i+ScheduleUpdaterPktMaxCells, len(neighborCells))],
 			}
 			pkts = append(pkts, pkt.Encode())
@@ -195,7 +224,7 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 	return pkts, nil
 }
 
-func (schedulePtr Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr udpack.IPString, cell *Cell) bool {
+func (schedulePtr Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) bool {
 	for _, scheduleCell := range schedulePtr[nodeAddr][neighborAddr] {
 		if cell.Equals(&scheduleCell) {
 			return true

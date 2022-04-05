@@ -1,6 +1,7 @@
 package applications
 
 import (
+	"coap-server/addrtranslation"
 	"coap-server/udpack"
 	"coap-server/utils"
 	"errors"
@@ -32,49 +33,54 @@ func (app *ApplicationTopology) ProcessPacket(addr *net.UDPAddr, packet []byte) 
 	if err != nil {
 		log.Panic(err)
 	}
-	app.Topology.SetNeighbors(addrIP, topologyPacket.Neighbors)
+	app.Topology.SetNeighbors(addrIP, topologyPacket)
 }
 
 func (app *ApplicationTopology) Ready() bool {
-	return len(app.Topology) == int(app.nClient)
+	return len(app.Topology.TopologyMap) == int(app.nClient)
 }
 func decodeTopologyPacket(packet []byte) (*TopologyPacket, error) {
-	const ipSize = 16
-	if len(packet)%ipSize != 0 {
+	const macSize = 8
+	if len(packet)%8 != 0 {
 		return nil, errors.New(
 			fmt.Sprintf("the length of a Topology packet should be a multiple of %d"+
-				" since each IP is represented with 16 bytes, currently the length is %d", ipSize, len(packet)))
+				" since each MAC addr is represented with %d bytes, currently the length is %d", macSize, macSize, len(packet)))
 	}
-	neighborsCount := len(packet) / ipSize
-	neighbors := make([]udpack.IPString, 0, neighborsCount)
-	for i := 0; i < neighborsCount; i++ {
-		neighborIP := packet[i*ipSize : i*ipSize+ipSize]
-		neighborIPString := udpack.NetIPToIPString(neighborIP).LinkLocalToGlobal()
-		neighbors = append(neighbors, neighborIPString)
+	moteAddr := (*addrtranslation.MacAddr)(packet[0:macSize])
+	neighborsCount := len(packet)/macSize - 1
+	neighbors := make([]*addrtranslation.MacAddr, 0, neighborsCount)
+	for i := 1; i <= neighborsCount; i++ {
+		neighborMac := (*addrtranslation.MacAddr)(packet[i*macSize : i*macSize+macSize])
+		neighbors = append(neighbors, neighborMac)
 	}
 
-	return &TopologyPacket{Neighbors: neighbors}, nil
+	return &TopologyPacket{MoteAddr: moteAddr, Neighbors: neighbors}, nil
 }
 
 type TopologyPacket struct {
-	Neighbors []udpack.IPString
+	MoteAddr  *addrtranslation.MacAddr
+	Neighbors []*addrtranslation.MacAddr
 }
 
-type Topology map[udpack.IPString][]udpack.IPString
+type Topology struct {
+	TopologyMap      map[udpack.IPString][]*addrtranslation.MacAddr
+	MacIPTranslation addrtranslation.MacIPTranslation
+}
 
 func newTopology() Topology {
-	return make(Topology)
+	return Topology{
+		TopologyMap:      map[udpack.IPString][]*addrtranslation.MacAddr{},
+		MacIPTranslation: addrtranslation.NewMacIPTranslation(),
+	}
 }
 
-func (topology Topology) AddNeighbor(addrIP, neighborIP udpack.IPString) {
-	topology[addrIP] = append(topology[addrIP], neighborIP)
-}
-
-func (topology Topology) SetNeighbors(addrIP udpack.IPString, neighborsIP []udpack.IPString) {
+func (topology *Topology) SetNeighbors(addrIP udpack.IPString, packet *TopologyPacket) {
 	utils.Log.Println("Settings new neighbors")
-	topology[addrIP] = neighborsIP
+	topology.TopologyMap[addrIP] = packet.Neighbors
+	topology.MacIPTranslation.Add(packet.MoteAddr, addrIP)
+	fmt.Println("Hello you")
 }
 
-func (topology Topology) ClearNeighbors(addrIP udpack.IPString) {
-	topology[addrIP] = []udpack.IPString{}
+func (topology *Topology) ClearNeighbors(addrIP udpack.IPString) {
+	topology.TopologyMap[addrIP] = []*addrtranslation.MacAddr{}
 }

@@ -58,7 +58,7 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 	}
 }
 
-func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
+func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, []byte) {
 	utils.Log.InfoPrintln("Size of the packet to send: ", len(packet))
 	addrIP := AddrToIPString(addr)
 	ackChan, in := udpAckConn.ackChannels[addrIP]
@@ -69,7 +69,7 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 	nextSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
 	packetWithHeader, err := newDataPacket(nextSequenceNumber, packet)
 	if err != nil {
-		return err
+		return err, nil
 	}
 	utils.Log.InfoPrintln("Size of packet: ", len(packetWithHeader))
 	config := udpAckConn.config
@@ -91,14 +91,14 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 	for {
 		select {
 		case pkt := <-ackChan:
-			header, _ := RemoveHeaderFromPacket(pkt)
+			header, packetWithoutHeader := RemoveHeaderFromPacket(pkt)
 			sequenceNumber := decodeSequenceNumber(header)
 			expectedSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
 			utils.Log.InfoPrintln("Expecting ACK: ", expectedSequenceNumber, " got ", sequenceNumber, '\n')
 			if sequenceNumber == expectedSequenceNumber {
 				utils.Log.InfoPrintln("ACK correctly received")
 				udpAckConn.sentSequencesNumbers.increment(addrIP, expectedSequenceNumber)
-				return nil // Client correctly received the pktToSend
+				return nil, packetWithoutHeader // Client correctly received the pktToSend
 			} else if sequenceNumber < expectedSequenceNumber {
 				utils.Log.InfoPrintln("Already received this ack -> doing nothing")
 			} else {
@@ -106,14 +106,14 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) error {
 				utils.Log.InfoPrintln("Message received: ", string(pkt))
 				_, err := conn.WriteTo(packetWithHeader, addr)
 				if err != nil {
-					return err
+					return err, nil
 				}
 			}
 		case <-time.After(config.Timeout):
 			utils.Log.WarningPrintln("Timeout on addr", addr.IP.String(), "resending pkt\n")
 			_, err := conn.WriteTo(packetWithHeader, addr)
 			if err != nil {
-				return err
+				return err, nil
 			}
 		}
 	}

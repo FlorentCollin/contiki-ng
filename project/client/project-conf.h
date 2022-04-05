@@ -24,4 +24,6 @@
 #define LOG_LEVEL_APP                              LOG_LEVEL_DBG
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
+#define LINKADDR_CONF_SIZE 8
+
 #endif /* PROJECT_CONF_H_ */

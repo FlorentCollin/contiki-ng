@@ -76,4 +76,6 @@
 /* Enable client-side support for COAP observe */
 #define COAP_OBSERVE_CLIENT            1
 
+#define LINKADDR_CONF_SIZE 8
+
 #endif /* PROJECT_CONF_H_ */

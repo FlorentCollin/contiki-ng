@@ -20,7 +20,7 @@ uint16_t schedule_updater_pkt_size_needed(struct schedule_updater_pkt *pkt) {
 
 void schedule_updater_pkt_encode(uint8_t *dest, struct schedule_updater_pkt *pkt) {
     dest[UPDATE_PKT_TYPE_OFFSET] = pkt->type;
-    memcpy(&dest[UPDATE_PKT_NEIGHBOR_ADDR_OFFSET], &pkt->neighbor_addr.u16, 8);
+    memcpy(&dest[UPDATE_PKT_NEIGHBOR_ADDR_OFFSET], &pkt->neighbor_addr, 8);
     dest[UPDATE_PKT_CELLS_COUNT_OFFSET] = pkt->cell_count;
     int index = UPDATE_PKT_CELL_START(0);
     for (int i = 0; i < pkt->cell_count; i++) {
@@ -36,8 +36,8 @@ enum schedule_updater_pkt_type update_pkt_type(const uint8_t *pkt_raw) {
     return pkt_raw[UPDATE_PKT_TYPE_OFFSET];
 }
 
-uip_ip6addr_t update_pkt_neighbor_addr(const uint8_t *pkt_raw) {
-    uip_ip6addr_t neighbor_addr;
+linkaddr_t update_pkt_neighbor_addr(const uint8_t *pkt_raw) {
+    linkaddr_t neighbor_addr;
     memcpy(&neighbor_addr, &pkt_raw[UPDATE_PKT_NEIGHBOR_ADDR_OFFSET], sizeof(neighbor_addr));
     return neighbor_addr;
 }
@@ -70,20 +70,9 @@ void update_pkt_add_cells(const uint8_t *pkt, struct tsch_slotframe *sf) {
         uint8_t link_options = update_pkt_cell_link_options(pkt, i);
         uint16_t timeslot = update_pkt_cell_timeslot(pkt, i);
         uint16_t channel = update_pkt_cell_channel(pkt, i);
-        uip_ip6addr_t neighbor_uip_addr = update_pkt_neighbor_addr(pkt);
-        uint16_t link_local = 0x80FE; // little endian for 0xFE80
-        memcpy(&neighbor_uip_addr, &link_local, sizeof(link_local));
-        LOG_INFO_6ADDR(&neighbor_uip_addr);
-        printf("\n");
-        uip_ds6_nbr_t* uip_nbr = uip_ds6_nbr_lookup(&neighbor_uip_addr);
-
-        if (uip_nbr == NULL) {
-            LOG_ERR("Error while adding a new link, could not find the neighbor link local addr\n");
-            continue;
-        }
-        linkaddr_t* neighbor_addr = (linkaddr_t *) uip_ds6_nbr_get_ll(uip_nbr);
+        linkaddr_t neighbor_addr = update_pkt_neighbor_addr(pkt);
         struct tsch_link *err = tsch_schedule_add_link(sf, link_options, LINK_TYPE_NORMAL, 
-                neighbor_addr, timeslot, channel, 1);
+                &neighbor_addr, timeslot, channel, 1);
         if (err == NULL) {
             LOG_ERR("Error while adding a new link, tsch_schedule_add_link\n");
         }
@@ -136,8 +125,8 @@ void update_pkt_log(const uint8_t *pkt) {
         case schedule_updater_pkt_type_update:
             LOG_INFO("  pkt->type = update\n");
             LOG_INFO("  pkt->neighbor_addr = ");
-            uip_ip6addr_t neighbor_addr = update_pkt_neighbor_addr(pkt);
-            LOG_INFO_6ADDR(&neighbor_addr);
+            linkaddr_t neighbor_addr = update_pkt_neighbor_addr(pkt);
+            LOG_INFO_LLADDR(&neighbor_addr);
             LOG_PRINT("\n");
             LOG_INFO("  pkt->cell_count = %d\n", update_pkt_cells_count(pkt));
             LOG_INFO("  pkt->cell_ids =\n");

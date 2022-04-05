@@ -18,7 +18,13 @@ static uint8_t ack_sequence_number;
 static struct simple_udp_connection udp_conn;
 
 #define UDP_CLIENT_PORT 8765
+#ifndef UDP_SERVER_PORT
 #define UDP_SERVER_PORT 3000
+#endif
+
+#ifndef UDP_SERVER_ADDR
+#define UDP_SERVER_ADDR {{0xfd, 0x00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1}}
+#endif
 
 /*---------------------------------------------------------------------------*/
 PROCESS(udpack_process, "UDP Ack Process");
@@ -46,7 +52,11 @@ static void udp_rx_callback(struct simple_udp_connection *c,
     }
     LOG_INFO("Sending ack %u\n", sequence_number);
     static uint8_t send_buffer[10] = {0};
-    new_ack_packet(send_buffer, sequence_number);
+
+    uint16_t len = new_ack_packet(send_buffer, sequence_number);
+    // encode the confirmation message for now we accept every new schedule sent to us
+#define CONFIRMATION 1
+    send_buffer[len++] = CONFIRMATION;
     simple_udp_sendto(c, send_buffer, 10, sender_addr);
 
     if (sequence_number <= highest_ack) {
@@ -71,9 +81,6 @@ static void ack_middleware(struct simple_udp_connection *c,
     Header header = 0;
     remove_header_from_packet(data, &header);
     enum PacketType packet_type = decode_packet_type(header);
-    uint8_t sequence_number = decode_sequence_number(header);
-    LOG_INFO("PacketType: %d\n", packet_type);
-    LOG_INFO("PacketSequenceNumber: %d\n", sequence_number);
     if (packet_type == PacketTypeAck) {
         LOG_INFO("Received an ACK polling udpack_process\n");
         ack_sequence_number = decode_sequence_number(header);
@@ -93,8 +100,8 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
     static uint8_t i = 0;
     PROCESS_BEGIN();
     LOG_INFO("UDP Ack Process started\n");
-    uip_ipaddr_t server_addr = {
-        {0xfd, 0x00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1}};
+    uip_ipaddr_t server_addr = UDP_SERVER_ADDR;
+    LOG_ERR_6ADDR(&server_addr);
 
     simple_udp_register(&udp_conn, UDP_CLIENT_PORT, &server_addr, UDP_SERVER_PORT, ack_middleware);
 

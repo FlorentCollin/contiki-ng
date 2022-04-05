@@ -1,6 +1,14 @@
 CONTIKI_PROJECT = client
 all: $(CONTIKI_PROJECT)
 
+ifdef UDP_SERVER_PORT
+CFLAGS += -DUDP_SERVER_PORT=$(UDP_SERVER_PORT)
+endif
+
+ifdef UDP_SERVER_ADDR
+CFLAGS += -DUDP_SERVER_ADDR=$(UDP_SERVER_ADDR)
+endif
+
 PROJECTDIRS += ../common
 PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c topology-application.c bandwidth-application.c
 

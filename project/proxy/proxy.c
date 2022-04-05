@@ -13,10 +13,7 @@
 #include "bandwidth-application.h"
 
 #define LOG_MODULE "Proxy"
-#define LOG_LEVEL LOG_LEVEL_WARN
-
-#define UDP_CLIENT_PORT	8765
-#define UDP_SERVER_PORT	3000
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 PROCESS(proxy_process, "Proxy Border");
 AUTOSTART_PROCESSES(&proxy_process);
@@ -27,18 +24,13 @@ PROCESS_THREAD(proxy_process, ev, data) {
     LOG_INFO("Proxy border started\n");
 
     etimer_set(&timer, 10 * CLOCK_SECOND);
-    if (node_id == 1) {
-        NETSTACK_ROUTING.root_start();
-        topology_application_start();
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-        etimer_reset(&timer);
-        graph_application_start();
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-        etimer_reset(&timer);
-        bandwidth_application_start(10);
-    } else {
-        LOG_ERR("The proxy border should be the node with id 1\n");
-    }
-
+    NETSTACK_ROUTING.root_start();
+    topology_application_start();
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+    etimer_reset(&timer);
+    graph_application_start();
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+    etimer_reset(&timer);
+    bandwidth_application_start(10);
     PROCESS_END();
 }

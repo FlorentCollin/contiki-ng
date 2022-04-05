@@ -1,0 +1,121 @@
+#!/usr/bin/python
+import subprocess
+from os import path
+from subprocess import CompletedProcess, PIPE
+from typing import List
+from time import sleep
+from sys import argv
+
+from cooja_simulation_generator import linear_topology_simulation
+
+CONTIKI_DIR = "/home/florent/dev/contiki-ng"
+
+def set_layout(layout: str):
+    send_command(f"kitty @ --to unix:/tmp/mykitty set-enabled-layouts {layout}")
+
+def send_command(command: str) -> CompletedProcess:
+    return subprocess.run([command], shell=True, stdout=PIPE, stderr=PIPE)
+
+def send_command_window(window_id: str, command: str) -> CompletedProcess:
+    kitty_command = f'kitty @ --to unix:/tmp/mykitty send-text --match id:{window_id} "{command}\n"'
+    print(kitty_command)
+    return subprocess.run(kitty_command, shell=True)
+
+def launch_window(commands: List[str]) -> str:
+    process = send_command("kitty @ --to unix:/tmp/mykitty launch --keep-focus zsh")
+    id = process.stdout.strip().decode("UTF-8")
+    for command in commands:
+        send_command_window(id, command)
+    return id
+
+def close_window(window_id: str, send_sigint: bool=True):
+    if send_sigint:
+        send_command_window(window_id, "\u0003")
+        sleep(0.3)
+    send_command(f"kitty @ --to unix:/tmp/mykitty close-window --match id:{window_id}")
+
+
+def launch_server(n_motes: int, first_mote_id: int, port: int) -> str:
+    commands = [
+        f"cd {CONTIKI_DIR}/project/server",
+        f"go run main.go {n_motes} {first_mote_id} {port}"
+    ]
+    return launch_window(commands)
+
+def launch_network_bridge(server_addr: str, tunslip_port: int) -> str:
+    if not server_addr.endswith("/64"):
+        server_addr += "/64"
+    commands = [
+        "echo Bridge Network",
+        "docker exec -it contiki-container bash",
+        "cd project/proxy",
+        f"for i in {{0..5}}; do make TARGET=cooja connect-router-cooja PREFIX={server_addr} TUNSLIP_PORT={tunslip_port} || sleep 1; done;"
+        "exit" # exit docker
+    ]
+    return launch_window(commands) 
+
+def launch_cooja(simulation_path: str, gui: bool=False):
+    cooja_path = "tools/cooja"
+    is_container_running = send_command('docker ps --filter name="contiki-container" -q')
+    commands = [f"touch {CONTIKI_DIR}/project/common/udpack-server.c"] 
+    # because we change some macro which doesn't trigger recompilation
+    if not is_container_running.stdout.strip():
+        commands.append("docker run --privileged \
+                                    --network=\"host\" \
+                                    --mount type=bind,source=$CNG_PATH,destination=/home/user/contiki-ng \
+                                    -e DISPLAY=$DISPLAY \
+                                    -v /tmp/.X11-unix:/tmp/.X11-unix \
+                                    -v /dev/bus/usb:/dev/bus/usb \
+                                    --name \"contiki-container\" \
+                                    --rm \
+                                    -ti \
+                                    contiki-11")
+    else:
+        commands.append("docker exec -it contiki-container bash")
+
+    commands.append(f"cd {cooja_path}/dist")
+    if not path.isfile(f"{CONTIKI_DIR}/{cooja_path}/dist/cooja.jar"):
+        commands.append("ant jar")
+    if gui:
+        commands.append(f"rm COOJA.testlog; java -Dsun.java2d.uiScale=2 -jar cooja.jar -quickstart={simulation_path} && exit")
+    else:
+        commands.append(f"rm COOJA.testlog; java -jar cooja.jar -nogui={simulation_path} && exit")
+    return launch_window(commands)
+
+def is_java_running():
+    output = send_command("docker top contiki-container | grep java").stdout.strip()
+    return len(output) != 0
+
+def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, server_port: int | str, tunslip_port: int | str, gui: bool):
+    simulation = linear_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
+    host_prefix = "/home/florent/dev"
+    docker_prefix = "/home/user/"
+    simulation_filepath = "/contiki-ng/project/simulations/sim.csc"
+    with open(host_prefix + simulation_filepath, "w") as f:
+        f.write(simulation)
+
+    tab_process = send_command("kitty @ --to unix:/tmp/mykitty launch --type=tab")
+    tab_id = tab_process.stdout.strip().decode("UTF-8")
+    cooja = launch_cooja(docker_prefix + simulation_filepath, gui)
+    server = launch_server(motes_count , first_mote_id, int(server_port))
+    bridge = launch_network_bridge(server_addr, int(tunslip_port))
+    try:
+        close_window(tab_id)
+        set_layout("grid")
+        while is_java_running(): 
+            sleep(0.5)
+        close_window(cooja)
+        close_window(server)
+        close_window(bridge)
+    except KeyboardInterrupt:
+        close_window(cooja)
+        close_window(server)
+        close_window(bridge)
+        close_window(tab_id)
+
+if __name__ == "__main__":
+    if len(argv) == 7:
+        gui = argv[6] == "gui" 
+        launch_simulation(int(argv[1]), int(argv[2]), argv[3], argv[4], argv[5], gui)
+    else:
+        launch_simulation(2, 1, "fd00::1", 3000, 60001, False)
