@@ -109,7 +109,6 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
         PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
         send_buffer_len = ((encoder_fn*) encoder)(send_buffer + sizeof(Header));
 
-        LOG_INFO("Starting to send a new packet\n");
         if (sequence_number > SEQUENCE_NUMBER_MAX) {
             sequence_number = 0;
         }
@@ -117,7 +116,6 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
         LOG_INFO("Sending %d bytes to the server\n", send_buffer_len);
         simple_udp_send(&udp_conn, &send_buffer, send_buffer_len);
         for (i = 0; i < 4; i++) {  // retries
-            LOG_INFO("Value of i: %d\n", i);
             etimer_set(&resend_interval, 10 * CLOCK_SECOND);
             PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_POLL || ev == PROCESS_EVENT_TIMER);
             if (ev == PROCESS_EVENT_TIMER) {
@@ -142,7 +140,7 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
                 continue;
             } else {
                 LOG_INFO("Ack received that was not the expected ack, resending the packet\n");
-                LOG_INFO("Sending %d bytes to the server\n", send_buffer_len);
+                LOG_INFO("Resending %d bytes to the server\n", send_buffer_len);
                 simple_udp_send(&udp_conn, &send_buffer, send_buffer_len);
 
             }

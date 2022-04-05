@@ -59,7 +59,6 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 }
 
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, []byte) {
-	utils.Log.InfoPrintln("Size of the packet to send: ", len(packet))
 	addrIP := AddrToIPString(addr)
 	ackChan, in := udpAckConn.ackChannels[addrIP]
 	if !in {
@@ -71,7 +70,6 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 	if err != nil {
 		return err, nil
 	}
-	utils.Log.InfoPrintln("Size of packet: ", len(packetWithHeader))
 	config := udpAckConn.config
 	conn := udpAckConn.conn
 	for i := 0; i < config.MaxRetries; i++ {
@@ -94,7 +92,6 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 			header, packetWithoutHeader := RemoveHeaderFromPacket(pkt)
 			sequenceNumber := decodeSequenceNumber(header)
 			expectedSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
-			utils.Log.InfoPrintln("Expecting ACK: ", expectedSequenceNumber, " got ", sequenceNumber, '\n')
 			if sequenceNumber == expectedSequenceNumber {
 				utils.Log.InfoPrintln("ACK correctly received")
 				udpAckConn.sentSequencesNumbers.increment(addrIP, expectedSequenceNumber)
@@ -102,15 +99,14 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 			} else if sequenceNumber < expectedSequenceNumber {
 				utils.Log.InfoPrintln("Already received this ack -> doing nothing")
 			} else {
-				utils.Log.InfoPrintln("Ack received that was not the expected Ack, resending the packet")
-				utils.Log.InfoPrintln("Message received: ", string(pkt))
+				utils.Log.InfoPrintln("Ack received that was not the expected Ack, resending the packet. Expected ACK: ", expectedSequenceNumber, ", got ", sequenceNumber)
 				_, err := conn.WriteTo(packetWithHeader, addr)
 				if err != nil {
 					return err, nil
 				}
 			}
 		case <-time.After(config.Timeout):
-			utils.Log.WarningPrintln("Timeout on addr", addr.IP.String(), "resending pkt\n")
+			utils.Log.WarningPrintln("Timeout on addr: ", addr.IP.String(), " resending pkt\n")
 			_, err := conn.WriteTo(packetWithHeader, addr)
 			if err != nil {
 				return err, nil
@@ -127,14 +123,12 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 	addrIP := AddrToIPString(addr)
 	packetHeader, packetWithoutHeader := RemoveHeaderFromPacket(packet)
 	packetType := DecodePacketType(packetHeader)
-	utils.Log.InfoPrintln("Packet Type:", [...]string{"Data", "DataNoACK", "ACK"}[packetType])
 	if packetType == PacketTypeDataNoACK {
 		handler(addr, packetWithoutHeader)
 		return nil
 	}
 
 	sequenceNumber := decodeSequenceNumber(packetHeader)
-	utils.Log.InfoPrintln("Sequence number associated with the packet:", sequenceNumber)
 	if packetType == PacketTypeAck {
 		udpAckConn.handleAck(addrIP, packet)
 		return nil
@@ -154,7 +148,7 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 			return udpAckConn.sendAck(addr, sequenceNumber)
 		}
 	}
-	utils.Log.InfoPrintln("Received the expected sequence number, normal handler is called")
+	utils.Log.InfoPrintln("Received the expected sequence number, normal handler is called. Packet Type: ", [...]string{"Data", "DataNoACK", "ACK"}[packetType])
 	// We received the packet with the expected sequence number, therefore we
 	// dispatch it to the handler and send out the Ack.
 	err := udpAckConn.sendAck(addr, sequenceNumber)

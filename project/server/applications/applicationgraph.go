@@ -29,7 +29,6 @@ func (app *ApplicationGraph) Type() AppType {
 }
 
 func (app *ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
-	utils.Log.Println("Processing graph packet...")
 	graphUpdates := decodeGraphUpdateData(packet)
 	for _, update := range graphUpdates {
 		app.updateGraph(&update)
@@ -37,7 +36,6 @@ func (app *ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
 }
 
 func (app *ApplicationGraph) Ready() bool {
-	utils.Log.Println("Current GRAPH SIZE: ", len(app.Graph))
 	if len(app.Graph) > int(app.nClients-1) {
 		utils.Log.ErrorPrintln("Something wrong...")
 	}

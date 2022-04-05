@@ -210,7 +210,6 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 
 	pkts := make([][]byte, 0)
 	for neighborAddr, neighborCells := range clientSchedule {
-		log.Printf("NeighborAddr : %+v\n", neighborAddr)
 		for i := 0; i < len(neighborCells); i += ScheduleUpdaterPktMaxCells {
 			pkt := UpdateRequest{
 				NeighborAddr: *neighborAddr,

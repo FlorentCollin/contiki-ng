@@ -134,7 +134,7 @@ void update_pkt_log(const uint8_t *pkt) {
                 LOG_INFO("       (%d) link_options = %d\n", i, update_pkt_cell_link_options(pkt, i));
                 LOG_INFO("       (%d) timeslot = %d\n", i, update_pkt_cell_timeslot(pkt, i));
                 LOG_INFO("       (%d) channel = %d\n", i, update_pkt_cell_channel(pkt, i));
-                LOG_INFO("\n");
+                printf("\n");
             }
             break;
     }

@@ -63,6 +63,5 @@ static uint16_t encode_rpl_neighbors(uint8_t* packet_buffer) {
         index += sizeof(*nbr_ip);
         nbr = nbr_table_next(rpl_neighbors, nbr);
     }
-    LOG_INFO("Topology, index: %d\n", index);
     return index;
 }
