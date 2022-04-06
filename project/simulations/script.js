@@ -1,7 +1,7 @@
 var FileWriter = Java.type("java.io.FileWriter");
 
-TIMEOUT(1800000, log.testOK());
-var speedLimit = 50;
+TIMEOUT(18000000, log.testOK());
+var speedLimit = 50.0;
 sim.setSpeedLimit(speedLimit);
 
 var timestamp = Date.now()
@@ -45,7 +45,7 @@ stats.firstScheduleMsgTime = firstScheduleMsgTime;
 stats.tx = tx;
 stats.rx = rx;
 stats.timeouts = timeouts;
-stats.scheduleInstallationTime = ((time - firstScheduleMsgTime) / 1000000/ speedLimit);
+stats.scheduleInstallationTime = ((time - firstScheduleMsgTime) / 1000000 / speedLimit);
 stats.speedLimit = speedLimit;
 
 log.log(JSON.stringify(stats, null, 4));
@@ -55,9 +55,9 @@ statsFile.close()
 outputLog.close();
 
 if (speedLimit == 1) {
-    GENERATE_MSG(10000, "sleep"); //Wait for 10 sec
+    GENERATE_MSG(5000, "sleep"); //Wait for 5 sec
 } else {
-    GENERATE_MSG(1500 * speedLimit, "sleep");
+    GENERATE_MSG(2000 * speedLimit, "sleep");
 }
 
 YIELD_THEN_WAIT_UNTIL(msg.equals("sleep"));

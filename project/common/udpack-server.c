@@ -7,7 +7,7 @@
 #include "schedule_updater.h"
 
 #define LOG_MODULE "UDPAckServer"
-#define LOG_LEVEL LOG_LEVEL_WARN
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 #define SEND_BUFFER_SIZE 127
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
@@ -180,11 +180,9 @@ void send_server_ack(uint16_t encoder(uint8_t *buffer)) {
 // inserted into it.
 void send_server(uint16_t encoder(uint8_t *buffer)) {
     init_udpack_server();
-    process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
-    static uint8_t buffer[SEND_BUFFER_SIZE] = {0};
     Header header = new_header(PacketTypeDataNoACK);
-    buffer[0] = header;
+    send_buffer[0] = header;
     uint16_t len = sizeof(header);
-    len += encoder(buffer + len);
-    simple_udp_send(&udp_conn, &buffer, len);
+    len += encoder(send_buffer + len);
+    simple_udp_send(&udp_conn, &send_buffer, len);
 }

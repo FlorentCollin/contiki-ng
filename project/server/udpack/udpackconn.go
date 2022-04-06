@@ -1,9 +1,13 @@
 package udpack
 
 import (
-	"coap-server/utils"
+	"errors"
 	"log"
 	"net"
+	"scheduleupdater-server/addrtranslation"
+	"scheduleupdater-server/stats"
+	"scheduleupdater-server/utils"
+	"sync"
 	"time"
 )
 
@@ -14,7 +18,8 @@ type UDPAckConn struct {
 	receivedSequencesNumbers SequenceNumbersMap
 	sentSequencesNumbers     SequenceNumbersMap
 	config                   *UDPAckConnSendConfig
-	ackChannels              map[IPString]chan []byte
+	ackChannels              map[addrtranslation.IPString]chan []byte
+	lock                     sync.RWMutex
 }
 
 func NewUDPAckServer(conn *net.UDPConn, config *UDPAckConnSendConfig) *UDPAckConn {
@@ -26,7 +31,8 @@ func NewUDPAckServer(conn *net.UDPConn, config *UDPAckConnSendConfig) *UDPAckCon
 		receivedSequencesNumbers: NewSequenceNumbersMap(),
 		sentSequencesNumbers:     NewSequenceNumbersMap(),
 		config:                   config,
-		ackChannels:              make(map[IPString]chan []byte),
+		ackChannels:              make(map[addrtranslation.IPString]chan []byte),
+		lock:                     sync.RWMutex{},
 	}
 }
 
@@ -49,7 +55,8 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 		}
 		remoteAddrString := remote.IP.String()
 		utils.Log.InfoPrintln("Message received from ", remoteAddrString)
-		packet := buffer[:rlen]
+		packet := make([]byte, rlen)
+		copy(packet, buffer)
 
 		err = udpAckConn.handlePacket(remote, packet, handler)
 		if err != nil {
@@ -59,11 +66,13 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 }
 
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, []byte) {
-	addrIP := AddrToIPString(addr)
+	addrIP := addrtranslation.AddrToIPString(addr)
 	ackChan, in := udpAckConn.ackChannels[addrIP]
 	if !in {
 		ackChan = make(chan []byte)
+		udpAckConn.lock.Lock()
 		udpAckConn.ackChannels[addrIP] = ackChan
+		udpAckConn.lock.Unlock()
 	}
 	nextSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
 	packetWithHeader, err := newDataPacket(nextSequenceNumber, packet)
@@ -74,6 +83,8 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 	conn := udpAckConn.conn
 	for i := 0; i < config.MaxRetries; i++ {
 		_, err = conn.WriteTo(packetWithHeader, addr)
+		stats.SimulationStats.ProtocolSent.Increment(addrIP)
+		stats.SimulationStats.Nsent.Increment(addrIP)
 		if err != nil {
 			utils.Log.ErrorPrintln("Error while trying to send the packet to the udpack: ", err)
 			utils.Log.ErrorPrintln("Retrying in ", config.TimesBetweenRetries)
@@ -86,9 +97,11 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 		log.Panic("Error maximum numbre of retries exhausted panicking with error : ", err)
 	}
 	// Waiting for the ack to be received
-	for {
+	for i := 0; i < config.MaxRetries; i++ {
+		utils.Log.WarningPrintln("Looping...")
 		select {
 		case pkt := <-ackChan:
+			stats.SimulationStats.ProtocolReceived.Increment(addrIP)
 			header, packetWithoutHeader := RemoveHeaderFromPacket(pkt)
 			sequenceNumber := decodeSequenceNumber(header)
 			expectedSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
@@ -100,19 +113,25 @@ func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, 
 				utils.Log.InfoPrintln("Already received this ack -> doing nothing")
 			} else {
 				utils.Log.InfoPrintln("Ack received that was not the expected Ack, resending the packet. Expected ACK: ", expectedSequenceNumber, ", got ", sequenceNumber)
+				stats.SimulationStats.ProtocolSent.Increment(addrIP)
+				stats.SimulationStats.Nsent.Increment(addrIP)
 				_, err := conn.WriteTo(packetWithHeader, addr)
 				if err != nil {
 					return err, nil
 				}
 			}
 		case <-time.After(config.Timeout):
-			utils.Log.WarningPrintln("Timeout on addr: ", addr.IP.String(), " resending pkt\n")
+			utils.Log.WarningPrintln("Timeout on addr: ", addrIP, " resending pkt\n")
+			stats.SimulationStats.Timeouts.Increment(addrIP)
 			_, err := conn.WriteTo(packetWithHeader, addr)
+			stats.SimulationStats.ProtocolSent.Increment(addrIP)
+			stats.SimulationStats.Nsent.Increment(addrIP)
 			if err != nil {
 				return err, nil
 			}
 		}
 	}
+	return errors.New("the ACK was not received"), nil
 }
 
 func (udpAckConn *UDPAckConn) Close() error {
@@ -120,7 +139,8 @@ func (udpAckConn *UDPAckConn) Close() error {
 }
 
 func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, handler UDPAckServerHandler) error {
-	addrIP := AddrToIPString(addr)
+	addrIP := addrtranslation.AddrToIPString(addr)
+	stats.SimulationStats.Nreceived.Increment(addrIP)
 	packetHeader, packetWithoutHeader := RemoveHeaderFromPacket(packet)
 	packetType := DecodePacketType(packetHeader)
 	if packetType == PacketTypeDataNoACK {
@@ -163,6 +183,8 @@ func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, han
 }
 
 func (udpAckConn *UDPAckConn) sendAck(addr *net.UDPAddr, sequenceNumber uint8) error {
+	addrIP := addrtranslation.AddrToIPString(addr)
+	stats.SimulationStats.Nsent.Increment(addrIP)
 	utils.Log.InfoPrintln("Sending the ACK to ", addr, " with sequence number ", sequenceNumber, "\n")
 	ackPacket, err := newAckPacket(sequenceNumber)
 	if err != nil {
@@ -172,11 +194,12 @@ func (udpAckConn *UDPAckConn) sendAck(addr *net.UDPAddr, sequenceNumber uint8) e
 	return err
 }
 
-func (udpAckConn *UDPAckConn) handleAck(addrIP IPString, packet []byte) {
+func (udpAckConn *UDPAckConn) handleAck(addrIP addrtranslation.IPString, packet []byte) {
 	if ackChan, in := udpAckConn.ackChannels[addrIP]; in {
 		select {
 		case ackChan <- packet:
 			break
+		//case <-time.After(5 * time.Second):
 		default:
 			utils.Log.WarningPrintln("Dropping the ACK because no goroutine is currently listening to ACK channel")
 		}
@@ -191,7 +214,7 @@ type UDPAckConnSendConfig struct {
 
 func newDefaultUDPAckConnSendConfig() *UDPAckConnSendConfig {
 	return &UDPAckConnSendConfig{
-		MaxRetries:          4,
+		MaxRetries:          10,
 		TimesBetweenRetries: 4 * time.Second,
 		Timeout:             4 * time.Second,
 	}

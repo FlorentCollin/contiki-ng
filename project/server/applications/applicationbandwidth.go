@@ -1,15 +1,17 @@
 package applications
 
 import (
-	"coap-server/udpack"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"scheduleupdater-server/addrtranslation"
+	"scheduleupdater-server/utils"
 	"sync"
 )
 
-type BandwidthMap map[udpack.IPString]uint
+type BandwidthMap map[addrtranslation.IPString]uint
+
 type ApplicationBandwidth struct {
 	Bandwith BandwidthMap
 	nClients uint
@@ -29,8 +31,12 @@ func (app *ApplicationBandwidth) Type() AppType {
 }
 
 func (app *ApplicationBandwidth) ProcessPacket(addr *net.UDPAddr, packet []byte) {
-	addrIP := udpack.AddrToIPString(addr)
+	addrIP := addrtranslation.AddrToIPString(addr)
 	bandwith, err := decodeBandwith(packet)
+	if bandwith != 10 && bandwith != 3 {
+		utils.Log.ErrorPrintln("WTF: ", addrIP)
+		utils.Log.ErrorPrintln("WTF IS WRONG WITH YOU ", bandwith)
+	}
 	if err != nil {
 		log.Panic(err)
 	}
@@ -44,7 +50,7 @@ func (app *ApplicationBandwidth) Ready() bool {
 }
 
 func decodeBandwith(packet []byte) (uint, error) {
-	if len(packet) < 1 || len(packet) > 1 {
+	if len(packet) < 1 {
 		return 0, errors.New(fmt.Sprintf(
 			"The bandwith packet in malformated, its length must be 1 byte and the packet received is %d bytes long.",
 			len(packet)))

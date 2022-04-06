@@ -10,7 +10,7 @@
 
 
 #define LOG_MODULE "BandwidthApplication"
-#define LOG_LEVEL LOG_LEVEL_WARN
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 PROCESS(bandwidth_application, "Bandwidth Application");
 
@@ -18,6 +18,7 @@ static uint8_t application_bandwidth = 0;
 
 void bandwidth_application_start(uint8_t bandwidth) { 
     application_bandwidth = bandwidth;
+    LOG_PRINT("Application bandwidth: %d\n", application_bandwidth);
     process_start(&bandwidth_application, NULL); 
 }
 
@@ -27,7 +28,7 @@ static struct etimer timer;
 PROCESS_THREAD(bandwidth_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Topology application started\n");
-    etimer_set(&timer, 30 * CLOCK_SECOND);
+    etimer_set(&timer, 180 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(encode_bandwidth);

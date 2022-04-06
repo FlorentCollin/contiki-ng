@@ -8,12 +8,12 @@
 #include "bandwidth-application.h"
 
 #define LOG_MODULE "App"
-#define LOG_LEVEL LOG_LEVEL_WARN
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 #define SEND_INTERVAL (20 * CLOCK_SECOND)
 
 
-#define APP_SLOTFRAME_HANDLE 0
+#define APP_SLOTFRAME_HANDLE 3
 #define APP_UNICAST_TIMESLOT 1
 static struct tsch_slotframe *sf_common;
 
@@ -23,6 +23,9 @@ static void initialize_tsch_schedule() {
         sf_common,
         (LINK_OPTION_RX | LINK_OPTION_TX | LINK_OPTION_SHARED | LINK_OPTION_TIME_KEEPING),
         LINK_TYPE_ADVERTISING, &tsch_broadcast_address, 0, 0, 1);
+    if (sf_common == NULL) {
+        LOG_ERR("Couldn't create the initial slotframe\n");
+    }
     for (int i = 1; i < APP_SLOTFRAME_SIZE; i++) {
         for (int j = 0; j < 4; j++) {
             struct tsch_link *link = tsch_schedule_add_link(
@@ -45,7 +48,7 @@ PROCESS_THREAD(udp_client_process, ev, data) {
     PROCESS_BEGIN();
     initialize_tsch_schedule();
     topology_application_start();
-    bandwidth_application_start(10);
+    bandwidth_application_start(3);
     PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

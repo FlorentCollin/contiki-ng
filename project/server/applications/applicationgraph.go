@@ -1,11 +1,11 @@
 package applications
 
 import (
-	"coap-server/udpack"
-	"coap-server/utils"
 	"encoding/binary"
 	"log"
 	"net"
+	"scheduleupdater-server/addrtranslation"
+	"scheduleupdater-server/utils"
 	"sync"
 	"time"
 )
@@ -43,8 +43,8 @@ func (app *ApplicationGraph) Ready() bool {
 }
 
 func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
-	childIPString := udpack.IPString(graphUpdate.ChildIP.String())
-	parentIPString := udpack.IPString(graphUpdate.ParentIP.String())
+	childIPString := addrtranslation.IPString(graphUpdate.ChildIP.String())
+	parentIPString := addrtranslation.IPString(graphUpdate.ParentIP.String())
 	if v, in := app.Graph[childIPString]; !in || v.ParentIP != parentIPString {
 		log.Printf("Adding RPL Link: from %s to %s\n", childIPString, parentIPString)
 		app.Graph[childIPString] = &RPLLink{
@@ -55,7 +55,7 @@ func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
 	}
 }
 
-func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP udpack.IPString, lifetime uint32) {
+func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP addrtranslation.IPString, lifetime uint32) {
 	time.Sleep(time.Duration(lifetime) * time.Second)
 	app.lock.RLock()
 	defer app.lock.RUnlock()
@@ -73,10 +73,10 @@ func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP udpack.IPS
 	delete(app.Graph, childIP)
 }
 
-type RPLGraph map[udpack.IPString]*RPLLink
+type RPLGraph map[addrtranslation.IPString]*RPLLink
 
 type RPLLink struct {
-	ParentIP    udpack.IPString
+	ParentIP    addrtranslation.IPString
 	ExpiredTime time.Time
 }
 

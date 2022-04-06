@@ -10,7 +10,7 @@
 
 
 #define LOG_MODULE "TopologyApplication"
-#define LOG_LEVEL LOG_LEVEL_WARN
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 PROCESS(topology_application, "Topology Application");
 
@@ -24,7 +24,7 @@ static struct etimer timer;
 PROCESS_THREAD(topology_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Topology application started\n");
-    etimer_set(&timer, 30 * CLOCK_SECOND);
+    etimer_set(&timer, 190 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(encode_topology);

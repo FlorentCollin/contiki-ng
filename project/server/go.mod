@@ -1,3 +1,3 @@
-module coap-server
+module scheduleupdater-server
 
 go 1.17

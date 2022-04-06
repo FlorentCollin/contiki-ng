@@ -49,7 +49,7 @@ def launch_network_bridge(server_addr: str, tunslip_port: int) -> str:
         "echo Bridge Network",
         "docker exec -it contiki-container bash",
         "cd project/proxy",
-        f"for i in {{0..5}}; do make TARGET=cooja connect-router-cooja PREFIX={server_addr} TUNSLIP_PORT={tunslip_port} || sleep 1; done;"
+        f"for i in {{0..1000}}; do make TARGET=cooja connect-router-cooja PREFIX={server_addr} TUNSLIP_PORT={tunslip_port} || sleep 1; done;"
         "exit" # exit docker
     ]
     return launch_window(commands) 
@@ -104,9 +104,9 @@ def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, se
         set_layout("grid")
         while is_java_running(): 
             sleep(0.5)
-        close_window(cooja)
-        close_window(server)
-        close_window(bridge)
+        # close_window(cooja)
+        # close_window(server)
+        # close_window(bridge)
     except KeyboardInterrupt:
         close_window(cooja)
         close_window(server)
@@ -116,6 +116,7 @@ def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, se
 if __name__ == "__main__":
     if len(argv) == 7:
         gui = argv[6] == "gui" 
+        print(argv)
         launch_simulation(int(argv[1]), int(argv[2]), argv[3], argv[4], argv[5], gui)
     else:
         launch_simulation(2, 1, "fd00::1", 3000, 60001, False)

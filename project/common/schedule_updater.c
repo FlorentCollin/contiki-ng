@@ -7,7 +7,7 @@
 #include "net/mac/tsch/tsch-schedule.h"
 
 #define LOG_MODULE "schedule_updater"
-#define LOG_LEVEL LOG_LEVEL_WARN
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 uint16_t schedule_updater_pkt_size_needed(struct schedule_updater_pkt *pkt) {
     return sizeof(pkt->type) 

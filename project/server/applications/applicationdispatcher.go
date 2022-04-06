@@ -1,9 +1,9 @@
 package applications
 
 import (
-	"coap-server/utils"
 	"log"
 	"net"
+	"scheduleupdater-server/utils"
 )
 
 type App interface {

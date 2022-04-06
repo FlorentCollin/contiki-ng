@@ -1,15 +1,16 @@
 package main
 
 import (
-	"coap-server/applications"
-	"coap-server/scheduleupdater"
-	"coap-server/udpack"
-	"coap-server/utils"
 	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"scheduleupdater-server/addrtranslation"
+	"scheduleupdater-server/applications"
+	"scheduleupdater-server/scheduleupdater"
+	"scheduleupdater-server/udpack"
+	"scheduleupdater-server/utils"
 	"strconv"
 	"time"
 )
@@ -79,17 +80,17 @@ func main() {
 			log.Panic(err)
 		}
 	}(server)
-	fmt.Println("server listening on port ", port, " ...")
+	fmt.Println("server listening on port ", port, "...")
 	log.Panic(server.Serve(appDispatcher.Handler))
 }
 
 // -- INTERNAL --
 
-func initializeClientsAddrs(clientCount uint, firstMoteID uint) []udpack.IPString {
-	addrs := make([]udpack.IPString, clientCount)
+func initializeClientsAddrs(clientCount uint, firstMoteID uint) []addrtranslation.IPString {
+	addrs := make([]addrtranslation.IPString, clientCount)
 	for i := firstMoteID; i < firstMoteID+clientCount; i++ {
-		fmt.Printf("Adding fd00::%d:%d:%d:%d\n", 200+i, i, i, i)
-		addrs[i-firstMoteID] = udpack.IPString(fmt.Sprintf("fd00::%d:%d:%d:%d", 200+i, i, i, i))
+		fmt.Printf("Adding fd00::%x:%x:%x:%x\n", 512+i, i, i, i)
+		addrs[i-firstMoteID] = addrtranslation.IPString(fmt.Sprintf("fd00::%x:%x:%x:%x", 512+i, i, i, i))
 	}
 	return addrs
 }
@@ -109,7 +110,7 @@ func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.B
 	return schedule
 }
 
-func addOneCell(schedule *scheduleupdater.Schedule, mote udpack.IPString, neighbor udpack.IPString, topology *applications.Topology) error {
+func addOneCell(schedule *scheduleupdater.Schedule, mote addrtranslation.IPString, neighbor addrtranslation.IPString, topology *applications.Topology) error {
 	rxCell := scheduleupdater.Cell{
 		LinkOptions: scheduleupdater.LinkOptionRX,
 		TimeSlot:    0,

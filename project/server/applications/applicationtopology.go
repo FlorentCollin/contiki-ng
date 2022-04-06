@@ -1,12 +1,12 @@
 package applications
 
 import (
-	"coap-server/addrtranslation"
-	"coap-server/udpack"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"scheduleupdater-server/addrtranslation"
+	"sync"
 )
 
 type ApplicationTopology struct {
@@ -26,7 +26,7 @@ func (app *ApplicationTopology) Type() AppType {
 }
 
 func (app *ApplicationTopology) ProcessPacket(addr *net.UDPAddr, packet []byte) {
-	addrIP := udpack.AddrToIPString(addr)
+	addrIP := addrtranslation.AddrToIPString(addr)
 	topologyPacket, err := decodeTopologyPacket(packet)
 	if err != nil {
 		log.Panic(err)
@@ -61,22 +61,28 @@ type TopologyPacket struct {
 }
 
 type Topology struct {
-	TopologyMap      map[udpack.IPString][]*addrtranslation.MacAddr
+	TopologyMap      map[addrtranslation.IPString][]*addrtranslation.MacAddr
 	MacIPTranslation addrtranslation.MacIPTranslation
+	lock             sync.RWMutex
 }
 
 func newTopology() Topology {
 	return Topology{
-		TopologyMap:      map[udpack.IPString][]*addrtranslation.MacAddr{},
+		TopologyMap:      map[addrtranslation.IPString][]*addrtranslation.MacAddr{},
 		MacIPTranslation: addrtranslation.NewMacIPTranslation(),
+		lock:             sync.RWMutex{},
 	}
 }
 
-func (topology *Topology) SetNeighbors(addrIP udpack.IPString, packet *TopologyPacket) {
+func (topology *Topology) SetNeighbors(addrIP addrtranslation.IPString, packet *TopologyPacket) {
+	topology.lock.Lock()
+	defer topology.lock.Unlock()
 	topology.TopologyMap[addrIP] = packet.Neighbors
 	topology.MacIPTranslation.Add(packet.MoteAddr, addrIP)
 }
 
-func (topology *Topology) ClearNeighbors(addrIP udpack.IPString) {
+func (topology *Topology) ClearNeighbors(addrIP addrtranslation.IPString) {
+	topology.lock.Lock()
+	defer topology.lock.Unlock()
 	topology.TopologyMap[addrIP] = []*addrtranslation.MacAddr{}
 }

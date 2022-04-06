@@ -1,25 +1,28 @@
 package scheduleupdater
 
 import (
-	"coap-server/addrtranslation"
-	"coap-server/udpack"
-	"coap-server/utils"
 	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"scheduleupdater-server/addrtranslation"
+	stats "scheduleupdater-server/stats"
+	"scheduleupdater-server/udpack"
+	"scheduleupdater-server/utils"
 	"sync"
+	"time"
 )
 
 const ScheduleUpdaterPktMaxCells = 11
 
 type Updater struct {
 	conn    *udpack.UDPAckConn
-	clients []udpack.IPString
+	clients []addrtranslation.IPString
 }
 
-func NewUpdater(conn *udpack.UDPAckConn, clients []udpack.IPString) Updater {
+func NewUpdater(conn *udpack.UDPAckConn, clients []addrtranslation.IPString) Updater {
+	utils.Log.WarningPrintln("Client len: ", len(clients))
 	return Updater{
 		conn:    conn,
 		clients: clients,
@@ -37,8 +40,8 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 	}
 
 	// New schedule update
+	stats.SimulationStats.ScheduleUpdateStart = time.Now()
 	scheduleUpdateAckPackets := updater.sendToEachClient(schedule.Serialize)
-	log.Println("No errors detected while sending the new schedule 🎉")
 	for ackPacket := range scheduleUpdateAckPackets {
 		if ackPacket.err != nil {
 			log.Panic(ackPacket.err.Error())
@@ -48,24 +51,27 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 			panic("One node declined the new schedule, the code does not handle yet this case")
 		}
 	}
+	log.Println("No errors detected while sending the new schedule 🎉")
 
 	// Update complete
-	updateCompleteErrors := updater.sendToEachClient(func(clientIP udpack.IPString) ([][]byte, error) {
+	updateCompleteErrors := updater.sendToEachClient(func(clientIP addrtranslation.IPString) ([][]byte, error) {
 		updateCompletePkt := UpdateConfirmation{}
 		return [][]byte{updateCompletePkt.Encode()}, nil
 	})
+	stats.SimulationStats.ScheduleUpdateEnd = time.Now()
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
 	log.Println("Everything is ok don't worry! Be happy 🎉🎉🎉")
+	stats.SimulationStats.WriteToFile("stats")
 	os.Exit(0)
 }
 
-type Serializer = func(clientIP udpack.IPString) ([][]byte, error)
+type Serializer = func(clientIP addrtranslation.IPString) ([][]byte, error)
 
 func (updater *Updater) sendToEachClient(serialize Serializer) <-chan AckPacketOrError {
 	var wg sync.WaitGroup
-	clientCount := len(updater.clients)
-	ackPackets := make(chan AckPacketOrError, clientCount)
+	//clientCount := len(updater.clients)
+	ackPackets := make(chan AckPacketOrError, 10000) // TODO MODIFY THIS SOULD NOT TAKE 1000 entries
 	for _, clientIP := range updater.clients {
 		wg.Add(1)
 		go updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
@@ -95,7 +101,7 @@ func (ackPacket *AckPacketOrError) confirmation() AckPacketConfirmation {
 	return AckPacketConfirmation(ackPacket.packet[0])
 }
 
-func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Serializer, ackPackets chan AckPacketOrError, wg *sync.WaitGroup) {
+func (updater *Updater) serializeAndSend(clientIP addrtranslation.IPString, serialize Serializer, ackPackets chan AckPacketOrError, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	pkts, err := serialize(clientIP)
@@ -103,7 +109,8 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 		ackPackets <- AckPacketOrError{err: err}
 		return
 	}
-	for _, pkt := range pkts {
+	for i, pkt := range pkts {
+		utils.Log.Println("Sending to client: ", clientIP, ", packet ", i, " / ", len(pkts))
 		// @incomplete needs refactor
 		udpAddr := &net.UDPAddr{
 			IP:   net.ParseIP(string(clientIP)),
@@ -112,6 +119,7 @@ func (updater *Updater) serializeAndSend(clientIP udpack.IPString, serialize Ser
 		}
 		err, packet := updater.conn.WriteTo(pkt, udpAddr)
 		if err != nil {
+			utils.Log.ErrorPrintln(err.Error())
 			ackPackets <- AckPacketOrError{err: err}
 			return
 		}
@@ -181,13 +189,13 @@ func (pkt *UpdateConfirmation) Encode() []byte {
 	return []byte{uint8(pkt.Type())}
 }
 
-type Schedule map[udpack.IPString]map[*addrtranslation.MacAddr][]Cell
+type Schedule map[addrtranslation.IPString]map[*addrtranslation.MacAddr][]Cell
 
 func NewSchedule() Schedule {
 	return make(Schedule)
 }
 
-func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) {
+func (schedulePtr *Schedule) AddCell(nodeAddr addrtranslation.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) {
 	schedule := *schedulePtr
 	mapCells, in := schedule[nodeAddr]
 	if !in {
@@ -202,7 +210,7 @@ func (schedulePtr *Schedule) AddCell(nodeAddr udpack.IPString, neighborAddr *add
 	mapCells[neighborAddr] = append(cells, *cell)
 }
 
-func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error) {
+func (schedulePtr Schedule) Serialize(clientIP addrtranslation.IPString) ([][]byte, error) {
 	clientSchedule, in := schedulePtr[clientIP]
 	if !in {
 		return nil, errors.New(fmt.Sprintf("the udpack ip address (%s) doesn't have any schedule associated with it", clientIP))
@@ -223,7 +231,7 @@ func (schedulePtr Schedule) Serialize(clientIP udpack.IPString) ([][]byte, error
 	return pkts, nil
 }
 
-func (schedulePtr Schedule) IsCellUsed(nodeAddr udpack.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) bool {
+func (schedulePtr Schedule) IsCellUsed(nodeAddr addrtranslation.IPString, neighborAddr *addrtranslation.MacAddr, cell *Cell) bool {
 	for _, scheduleCell := range schedulePtr[nodeAddr][neighborAddr] {
 		if cell.Equals(&scheduleCell) {
 			return true
