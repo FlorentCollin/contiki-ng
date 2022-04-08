@@ -24,7 +24,7 @@ static struct etimer timer;
 PROCESS_THREAD(graph_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Graph application started\n");
-    etimer_set(&timer, 185 * CLOCK_SECOND);
+    etimer_set(&timer, 190 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(encode_graph);

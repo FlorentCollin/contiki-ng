@@ -9,7 +9,7 @@
 #define LOG_MODULE "UDPAckServer"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define SEND_BUFFER_SIZE 127
+#define SEND_BUFFER_SIZE 512
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
 static int send_ready = 0;
 static uint16_t send_buffer_len;

@@ -41,6 +41,7 @@ type Stats struct {
 	ProtocolReceived    IncDict   `json:"protocolReceived,omitempty"`
 	ScheduleUpdateStart time.Time `json:"scheduleUpdateStart,omitempty"`
 	ScheduleUpdateEnd   time.Time `json:"scheduleUpdateEnd,omitempty"`
+	Nclients            uint      `json:"nclients,omitempty"`
 }
 
 var SimulationStats = Stats{
@@ -49,6 +50,7 @@ var SimulationStats = Stats{
 	Timeouts:         NewIncDict(),
 	ProtocolSent:     NewIncDict(),
 	ProtocolReceived: NewIncDict(),
+	Nclients:         0,
 }
 
 func (stats *Stats) WriteToFile(prefix string) {

@@ -33,7 +33,7 @@ func (app *ApplicationBandwidth) Type() AppType {
 func (app *ApplicationBandwidth) ProcessPacket(addr *net.UDPAddr, packet []byte) {
 	addrIP := addrtranslation.AddrToIPString(addr)
 	bandwith, err := decodeBandwith(packet)
-	if bandwith != 10 && bandwith != 3 {
+	if bandwith != 10 && bandwith != 5 {
 		utils.Log.ErrorPrintln("WTF: ", addrIP)
 		utils.Log.ErrorPrintln("WTF IS WRONG WITH YOU ", bandwith)
 	}

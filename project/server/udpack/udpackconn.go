@@ -214,8 +214,8 @@ type UDPAckConnSendConfig struct {
 
 func newDefaultUDPAckConnSendConfig() *UDPAckConnSendConfig {
 	return &UDPAckConnSendConfig{
-		MaxRetries:          10,
-		TimesBetweenRetries: 4 * time.Second,
-		Timeout:             4 * time.Second,
+		MaxRetries:          100,
+		TimesBetweenRetries: 5 * time.Second,
+		Timeout:             5 * time.Second,
 	}
 }

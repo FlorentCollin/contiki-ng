@@ -9,6 +9,7 @@ import (
 	"scheduleupdater-server/addrtranslation"
 	"scheduleupdater-server/applications"
 	"scheduleupdater-server/scheduleupdater"
+	"scheduleupdater-server/stats"
 	"scheduleupdater-server/udpack"
 	"scheduleupdater-server/utils"
 	"strconv"
@@ -25,6 +26,7 @@ func printHelp() {
 func main() {
 	utils.NewLogger(utils.LogLevelInfo, utils.WHITE)
 	nClients, firstMoteID, port, err := parseArgs()
+	stats.SimulationStats.Nclients = nClients
 	if err != nil {
 		fmt.Println(err)
 		printHelp()
@@ -98,12 +100,20 @@ func initializeClientsAddrs(clientCount uint, firstMoteID uint) []addrtranslatio
 func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.BandwidthMap, topology *applications.Topology) scheduleupdater.Schedule {
 	schedule := scheduleupdater.NewSchedule()
 	for mote, bandwidth := range *bandwidthMap {
+		rplLink, in := (*graph)[mote]
+		if !in {
+			utils.Log.ErrorPrintln("Couldn't found the RPL Link associated with mote ", mote)
+			continue
+		}
+		// Add the descending cell to join the node from the server
+		err := addOneCell(&schedule, rplLink.ParentIP, mote, topology)
+		if err != nil {
+			log.Panic(err)
+		}
 		for i := uint(0); i < bandwidth; i++ {
-			if rplLink, in := (*graph)[mote]; in {
-				err := addOneCell(&schedule, mote, rplLink.ParentIP, topology)
-				if err != nil {
-					log.Panic(err)
-				}
+			err := addOneCell(&schedule, mote, rplLink.ParentIP, topology)
+			if err != nil {
+				log.Panic(err)
 			}
 		}
 	}

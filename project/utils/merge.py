@@ -20,19 +20,45 @@ def merge(filenames):
     return merged_stats
 
 
-if __name__ == "__main__":
-    from sys import argv
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    merged_stats = merge(argv[1:])
-    ax = sns.boxplot(data=merged_stats["tx"])
-    _, nmotes = merged_stats["tx"].shape
-    ax.set_xticklabels([str(i) for i in range(1, nmotes+1)])
+def timeToInstall(filenames):
+    stats = load_files(filenames)
+    nclients = [s["nclients"] for s in stats]
+    maxClient = max(nclients)
+    minClient = min(nclients)
+    data = [[] for n in range(minClient, maxClient + 1)]
+    startTimes = [pd.to_datetime(s["scheduleUpdateStart"]) for s in stats]
+    endTimes = [pd.to_datetime(s["scheduleUpdateEnd"]) for s in stats]
+    nclients = [s["nclients"] for s in stats]
+    deltas = [(n, (e - s).total_seconds()) for (n, s, e) in zip(nclients, startTimes, endTimes)]
+    for n, delta in deltas:
+        data[n-minClient].append(delta)
 
+    nsimulations = [len(x) for x in data]
+    # print(data)
+    print(nsimulations)
+    ax = sns.boxplot(data=data)
+    ax.set_xticklabels(list(range(minClient, maxClient+1)))
+    ax.set_title("Time(s) to install a new schedule on a linear topology")
+    ax.set_ylabel("Time(s)")
+    ax.set_xlabel("Number of motes")
+    plt.show()
     plt.close()
 
-    sns.histplot(data=merged_stats["scheduleInstallationTime"], bins=6)
-    plt.show()
-    print(merged_stats["scheduleInstallationTime"])
-    print(merged_stats["scheduleInstallationTime"].mean())
+if __name__ == "__main__":
+    from sys import argv
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    timeToInstall(argv[1:])
+    # merged_stats = merge(argv[1:])
+    # ax = sns.boxplot(data=merged_stats["tx"])
+    # _, nmotes = merged_stats["tx"].shape
+    # ax.set_xticklabels([str(i) for i in range(1, nmotes+1)])
+
+    # plt.close()
+
+    # sns.histplot(data=merged_stats["scheduleInstallationTime"], bins=6)
+    # plt.show()
+    # print(merged_stats["scheduleInstallationTime"])
+    # print(merged_stats["scheduleInstallationTime"].mean())
 

@@ -104,9 +104,9 @@ def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, se
         set_layout("grid")
         while is_java_running(): 
             sleep(0.5)
-        # close_window(cooja)
-        # close_window(server)
-        # close_window(bridge)
+        close_window(cooja)
+        close_window(server)
+        close_window(bridge)
     except KeyboardInterrupt:
         close_window(cooja)
         close_window(server)
