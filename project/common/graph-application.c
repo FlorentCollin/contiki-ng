@@ -24,7 +24,7 @@ static struct etimer timer;
 PROCESS_THREAD(graph_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Graph application started\n");
-    etimer_set(&timer, 190 * CLOCK_SECOND);
+    etimer_set(&timer, 31 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(encode_graph);
@@ -46,6 +46,7 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
     uip_ipaddr_t parent_ipaddr;
     link = uip_sr_node_head();
     uint16_t packet_size = encode_graph_application_type(packet_buffer);
+    uint8_t n_links = 0;
     while (link != NULL) {
         if (link->parent == NULL) {
             link = uip_sr_node_next(link);
@@ -62,7 +63,9 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
         packet_size += sizeof(link->lifetime);
 
         link = uip_sr_node_next(link);
+        n_links++;
     }
     LOG_INFO("Graph size: %d\n", packet_size);
+    LOG_INFO("Graph n_links: %d\n", n_links);
     return packet_size;
 }

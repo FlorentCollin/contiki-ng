@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"scheduleupdater-server/addrtranslation"
+	"scheduleupdater-server/applications"
 	stats "scheduleupdater-server/stats"
 	"scheduleupdater-server/udpack"
 	"scheduleupdater-server/utils"
@@ -29,7 +30,7 @@ func NewUpdater(conn *udpack.UDPAckConn, clients []addrtranslation.IPString) Upd
 	}
 }
 
-func (updater *Updater) UpdateClients(schedule *Schedule) {
+func (updater *Updater) UpdateClients(schedule *Schedule, rplGraph *applications.RPLGraph) {
 	// helper function to check if any error and panic if any
 	panicIfErrors := func(ackPackets <-chan AckPacketOrError) {
 		for ackPacket := range ackPackets {
@@ -41,7 +42,7 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 
 	// New schedule update
 	stats.SimulationStats.ScheduleUpdateStart = time.Now()
-	scheduleUpdateAckPackets := updater.sendToEachClient(schedule.Serialize)
+	scheduleUpdateAckPackets := updater.sendToEachClientAsync(schedule.Serialize, updater.clients)
 	for ackPacket := range scheduleUpdateAckPackets {
 		if ackPacket.err != nil {
 			log.Panic(ackPacket.err.Error())
@@ -53,11 +54,12 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 	}
 	log.Println("No errors detected while sending the new schedule 🎉")
 
+    order := rplGraph.LeavesToRootOrder()
 	// Update complete
-	updateCompleteErrors := updater.sendToEachClient(func(clientIP addrtranslation.IPString) ([][]byte, error) {
+	updateCompleteErrors := updater.sendToEachClientSync(func(clientIP addrtranslation.IPString) ([][]byte, error) {
 		updateCompletePkt := UpdateConfirmation{}
 		return [][]byte{updateCompletePkt.Encode()}, nil
-	})
+	}, order)
 	stats.SimulationStats.ScheduleUpdateEnd = time.Now()
 	panicIfErrors(updateCompleteErrors)
 	log.Println("No errors detected while sending complete pkt 🎉")
@@ -68,13 +70,26 @@ func (updater *Updater) UpdateClients(schedule *Schedule) {
 
 type Serializer = func(clientIP addrtranslation.IPString) ([][]byte, error)
 
-func (updater *Updater) sendToEachClient(serialize Serializer) <-chan AckPacketOrError {
+func (updater *Updater) sendToEachClientAsync(serialize Serializer, order []addrtranslation.IPString) <-chan AckPacketOrError {
 	var wg sync.WaitGroup
 	//clientCount := len(updater.clients)
 	ackPackets := make(chan AckPacketOrError, 10000) // TODO MODIFY THIS SOULD NOT TAKE 1000 entries
 	for _, clientIP := range updater.clients {
 		wg.Add(1)
 		go updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
+	}
+	wg.Wait()
+	close(ackPackets)
+	return ackPackets
+}
+
+func (updater *Updater) sendToEachClientSync(serialize Serializer, order []addrtranslation.IPString) <-chan AckPacketOrError {
+	var wg sync.WaitGroup
+	//clientCount := len(updater.clients)
+	ackPackets := make(chan AckPacketOrError, 10000) // TODO MODIFY THIS SOULD NOT TAKE 1000 entries
+	for _, clientIP := range updater.clients {
+		wg.Add(1)
+		updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
 	}
 	wg.Wait()
 	close(ackPackets)

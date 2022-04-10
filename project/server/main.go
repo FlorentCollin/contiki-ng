@@ -73,7 +73,7 @@ func main() {
 		}
 		schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
 		updater := scheduleupdater.NewUpdater(server, addrs)
-		updater.UpdateClients(&schedule)
+		updater.UpdateClients(&schedule, &appGraph.Graph)
 	}()
 
 	defer func(server *udpack.UDPAckConn) {

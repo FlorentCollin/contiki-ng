@@ -1,8 +1,8 @@
 var FileWriter = Java.type("java.io.FileWriter");
 
 TIMEOUT(18000000, log.testOK());
-var speedLimit = 1.0;
-//var speedLimit = 50.0;
+var updateSpeedLimit = 1.0;
+var speedLimit = 250.0;
 sim.setSpeedLimit(speedLimit);
 
 var timestamp = Date.now()
@@ -38,6 +38,14 @@ while(Object.keys(completed).length < motesCount) {
         tx[id-1]++;
     } else if (msg.contains(timeoutMsg)) {
         timeouts[id-1]++;
+    } else if (msg.contains("Graph n_links:")) {
+        splits = msg.split(":")
+        nLinks = Number(splits[splits.length - 1])
+        outputLog.write("NLINKS: " + nLinks + '\n');
+        if (nLinks === motesCount - 1) {
+            sim.setSpeedLimit(updateSpeedLimit);
+            outputLog.write("SETTING SPEED LIMIT\n");
+        }
     }
     YIELD();
 }
@@ -47,7 +55,7 @@ stats.tx = tx;
 stats.rx = rx;
 stats.timeouts = timeouts;
 stats.scheduleInstallationTime = ((time - firstScheduleMsgTime) / 1000000 / speedLimit);
-stats.speedLimit = speedLimit;
+stats.updateSpeedLimit = updateSpeedLimit;
 
 log.log(JSON.stringify(stats, null, 4));
 statsFile = new FileWriter("simulation-stats" + timestamp + ".json");
@@ -55,11 +63,7 @@ statsFile.write(JSON.stringify(stats, null, 4));
 statsFile.close()
 outputLog.close();
 
-if (speedLimit == 1) {
-    GENERATE_MSG(5000, "sleep"); //Wait for 5 sec
-} else {
-    GENERATE_MSG(2000 * speedLimit, "sleep");
-}
+GENERATE_MSG(5000, "sleep"); //Wait for 5 sec
 
 YIELD_THEN_WAIT_UNTIL(msg.equals("sleep"));
 log.testOK();

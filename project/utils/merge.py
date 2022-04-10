@@ -4,6 +4,7 @@ import numpy as np
 def load_files(filenames):
     res = []
     for filename in filenames:
+        print(f"Loading filename: {filename}...")
         with open(filename) as f:
             res.append(json.load(f))
     return res
