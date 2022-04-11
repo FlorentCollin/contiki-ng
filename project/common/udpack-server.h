@@ -10,12 +10,12 @@ void init_udpack_server();
 
 // send_server_ack sends a packet to the server and wait for an ACK. 
 //The packet is created using the encoder function which must encode 
-// the packet to send into // the buffer and return the number of bytes 
+// the packet to send into the buffer and return the number of bytes 
 // inserted into it.
 void send_server_ack(uint16_t encoder(uint8_t *buffer));
 
 // send_server sends a packet to the server without waiting for an ACK.
-// The packet is created // using the encoder function which must encode 
+// The packet is created using the encoder function which must encode 
 // the packet to send into the buffer and return the number of bytes 
 // inserted into it.
 void send_server(uint16_t encoder(uint8_t *buffer));

@@ -63,7 +63,7 @@ statsFile.write(JSON.stringify(stats, null, 4));
 statsFile.close()
 outputLog.close();
 
-GENERATE_MSG(5000, "sleep"); //Wait for 5 sec
+GENERATE_MSG(500, "sleep"); //Wait for 0.5 secondes
 
 YIELD_THEN_WAIT_UNTIL(msg.equals("sleep"));
 log.testOK();
