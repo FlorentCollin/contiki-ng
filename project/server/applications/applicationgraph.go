@@ -77,46 +77,50 @@ func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP addrtransl
 type RPLGraph map[addrtranslation.IPString]*RPLLink
 
 func (rplGraph RPLGraph) LeavesToRootOrder() []addrtranslation.IPString {
-    order := make([]addrtranslation.IPString, 0)
-    leaves := rplGraph.findLeaves()
-    fmt.Printf("RPLGraph: %+v\n", rplGraph)
-    fmt.Printf("Leaves: %+v\n", leaves)
-    for _, leaf := range leaves {
-        order = append(order, leaf)
-        for {
-            if link, in := rplGraph[leaf]; in {
-                order = append(order, link.ParentIP)
-                leaf = link.ParentIP 
-            } else {
-                if order[len(order)-1] != leaf {
-                    order = append(order, leaf)
-                }
-                break
-            }
-        }
-    }
+	order := make([]addrtranslation.IPString, len(rplGraph) + 1)
+	leaves := rplGraph.findLeaves()
+	fmt.Printf("RPLGraph: %+v\n", rplGraph)
+	fmt.Printf("Leaves: %+v\n", leaves)
+    index := len(order)-1
+	for _, leaf := range leaves {
+		order[index] = leaf
+        index--
+		for {
+			if link, in := rplGraph[leaf]; in {
+				order[index] = link.ParentIP
+                index--
+				leaf = link.ParentIP
+			} else {
+				if order[index+1] != leaf {
+					order = append(order, leaf)
+                    order[index] = leaf
+                    index--
+				}
+				break
+			}
+		}
+	}
 
-    return order
+	return order
 }
 
 func (rplGraph RPLGraph) findLeaves() []addrtranslation.IPString {
-    leaves := make([]addrtranslation.IPString, 0)
-    for potentialLeaf := range rplGraph {
-        isLeaf := true
-        for _, childLink := range rplGraph {
-            notALeaf := childLink != nil && childLink.ParentIP == potentialLeaf
-            if notALeaf {
-                isLeaf = false
-                break
-            }
-        }
-        if isLeaf {
-            leaves = append(leaves, potentialLeaf)
-        }
-    }
-    return leaves
+	leaves := make([]addrtranslation.IPString, 0)
+	for potentialLeaf := range rplGraph {
+		isLeaf := true
+		for _, childLink := range rplGraph {
+			notALeaf := childLink != nil && childLink.ParentIP == potentialLeaf
+			if notALeaf {
+				isLeaf = false
+				break
+			}
+		}
+		if isLeaf {
+			leaves = append(leaves, potentialLeaf)
+		}
+	}
+	return leaves
 }
-
 
 type RPLLink struct {
 	ParentIP    addrtranslation.IPString

@@ -8,7 +8,7 @@
 
 /* Size of the application-specific schedule; a number relatively prime to the hopseq length */
 /* Same as TSCH_SCHEDULE_CONF_DEFAULT_LENGTH */
-#define APP_SLOTFRAME_SIZE 73
+#define APP_SLOTFRAME_SIZE 101
 
 /* Disable security */
 #define LLSEC802154_CONF_ENABLED 0

@@ -9,6 +9,7 @@
 #include "etimer.h"
 
 #include "udpack-server.h"
+#include "application-type.h"
 #include "packet.h"
 
 #define LOG_MODULE "GraphApplication"
@@ -27,16 +28,10 @@ PROCESS_THREAD(graph_application, ev, data) {
     etimer_set(&timer, 31 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-        send_server(encode_graph);
+        send_server(AppTypeGraph, encode_graph);
         etimer_reset(&timer);
     }
     PROCESS_END();
-}
-
-static uint16_t encode_graph_application_type(uint8_t* packet_buffer) {
-#define GRAPH_APPLICATION_TYPE 0
-    packet_buffer[0] = GRAPH_APPLICATION_TYPE;
-    return 1;
 }
 
 static uint16_t encode_graph(uint8_t* packet_buffer) {
@@ -45,7 +40,7 @@ static uint16_t encode_graph(uint8_t* packet_buffer) {
     uip_ipaddr_t child_ipaddr;
     uip_ipaddr_t parent_ipaddr;
     link = uip_sr_node_head();
-    uint16_t packet_size = encode_graph_application_type(packet_buffer);
+    uint16_t packet_size = 0;
     uint8_t n_links = 0;
     while (link != NULL) {
         if (link->parent == NULL) {

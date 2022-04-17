@@ -169,7 +169,7 @@ void init_udpack_server() {
     }
 }
 
-void send_server_ack(uint16_t encoder(uint8_t *buffer)) {
+void send_server_ack(enum ApplicationType app_type, uint16_t encoder(uint8_t *buffer)) {
     init_udpack_server();
     process_post(&udpack_process, PROCESS_EVENT_CONTINUE, encoder);
 }
@@ -178,11 +178,17 @@ void send_server_ack(uint16_t encoder(uint8_t *buffer)) {
 // The packet is created // using the encoder function which must encode 
 // the packet to send into the buffer and return the number of bytes 
 // inserted into it.
-void send_server(uint16_t encoder(uint8_t *buffer)) {
+void send_server(enum ApplicationType app_type, uint16_t encoder(uint8_t *buffer)) {
     init_udpack_server();
     Header header = new_header(PacketTypeDataNoACK);
     send_buffer[0] = header;
     uint16_t len = sizeof(header);
+    len += encode_application_type(app_type, send_buffer + len);
     len += encoder(send_buffer + len);
     simple_udp_send(&udp_conn, &send_buffer, len);
+}
+
+uint16_t encode_application_type(enum ApplicationType app_type, uint8_t *buffer) {
+    buffer[0] = app_type;
+    return 1;
 }

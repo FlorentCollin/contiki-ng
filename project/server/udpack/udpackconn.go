@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 	"scheduleupdater-server/addrtranslation"
-	"scheduleupdater-server/stats"
+    "scheduleupdater-server/stats"
 	"scheduleupdater-server/utils"
 	"sync"
 	"time"
@@ -14,10 +14,10 @@ import (
 // UDPAckConn handles UDP connections with ACK of packets. Only one UDP packet
 // can be flying at the same time.
 type UDPAckConn struct {
+	Config                   *UDPAckConnSendConfig
 	conn                     *net.UDPConn
 	receivedSequencesNumbers SequenceNumbersMap
 	sentSequencesNumbers     SequenceNumbersMap
-	config                   *UDPAckConnSendConfig
 	ackChannels              map[addrtranslation.IPString]chan []byte
 	lock                     sync.RWMutex
 }
@@ -27,10 +27,10 @@ func NewUDPAckServer(conn *net.UDPConn, config *UDPAckConnSendConfig) *UDPAckCon
 		config = newDefaultUDPAckConnSendConfig()
 	}
 	return &UDPAckConn{
+		Config:                   config,
 		conn:                     conn,
 		receivedSequencesNumbers: NewSequenceNumbersMap(),
 		sentSequencesNumbers:     NewSequenceNumbersMap(),
-		config:                   config,
 		ackChannels:              make(map[addrtranslation.IPString]chan []byte),
 		lock:                     sync.RWMutex{},
 	}
@@ -67,19 +67,19 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, []byte) {
 	addrIP := addrtranslation.AddrToIPString(addr)
+	udpAckConn.lock.Lock()
 	ackChan, in := udpAckConn.ackChannels[addrIP]
 	if !in {
 		ackChan = make(chan []byte)
-		udpAckConn.lock.Lock()
 		udpAckConn.ackChannels[addrIP] = ackChan
-		udpAckConn.lock.Unlock()
 	}
+	udpAckConn.lock.Unlock()
 	nextSequenceNumber := udpAckConn.sentSequencesNumbers.expected(addrIP)
 	packetWithHeader, err := newDataPacket(nextSequenceNumber, packet)
 	if err != nil {
 		return err, nil
 	}
-	config := udpAckConn.config
+	config := udpAckConn.Config
 	conn := udpAckConn.conn
 	for i := 0; i < config.MaxRetries; i++ {
 		_, err = conn.WriteTo(packetWithHeader, addr)
@@ -216,6 +216,6 @@ func newDefaultUDPAckConnSendConfig() *UDPAckConnSendConfig {
 	return &UDPAckConnSendConfig{
 		MaxRetries:          100,
 		TimesBetweenRetries: 5 * time.Second,
-		Timeout:             5 * time.Second,
+		Timeout:             15 * time.Second,
 	}
 }

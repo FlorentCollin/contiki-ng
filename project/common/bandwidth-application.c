@@ -8,6 +8,7 @@
 #include "net/routing/rpl-lite/rpl.h"
 #include "sys/log.h"
 
+#include "application-type.h"
 
 #define LOG_MODULE "BandwidthApplication"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -31,7 +32,7 @@ PROCESS_THREAD(bandwidth_application, ev, data) {
     etimer_set(&timer, 30 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-        send_server(encode_bandwidth);
+        send_server(AppTypeBandwidth, encode_bandwidth);
         etimer_reset(&timer);
     }
     PROCESS_END();
@@ -40,9 +41,6 @@ PROCESS_THREAD(bandwidth_application, ev, data) {
 
 static uint16_t encode_bandwidth(uint8_t* packet_buffer) {
     LOG_DBG("Encoding the Bandwidth\n");
-#define BANDWIDTH_APPLICATION_TYPE 2
-    uint16_t index = 0;
-    packet_buffer[index++] = BANDWIDTH_APPLICATION_TYPE;
-    packet_buffer[index++] = application_bandwidth;
-    return index;
+    packet_buffer[0] = application_bandwidth;
+    return 1;
 }

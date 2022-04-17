@@ -1,5 +1,4 @@
 #include "topology-application.h"
-#include "udpack-server.h"
 
 #include "contiki.h"
 #include "etimer.h"
@@ -7,6 +6,9 @@
 #include "net/ipv6/uip.h"
 #include "net/routing/rpl-lite/rpl.h"
 #include "sys/log.h"
+
+#include "udpack-server.h"
+#include "application-type.h"
 
 
 #define LOG_MODULE "TopologyApplication"
@@ -17,7 +19,6 @@ PROCESS(topology_application, "Topology Application");
 void topology_application_start() { process_start(&topology_application, NULL); }
 
 static uint16_t encode_topology(uint8_t* packet_buffer);
-static uint16_t encode_topology_application_type(uint8_t* packet_buffer);
 static uint16_t encode_rpl_neighbors(uint8_t* packet_buffer);
 
 static struct etimer timer;
@@ -27,23 +28,15 @@ PROCESS_THREAD(topology_application, ev, data) {
     etimer_set(&timer, 33 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-        send_server(encode_topology);
+        send_server(AppTypeTopology, encode_topology);
         etimer_reset(&timer);
     }
     PROCESS_END();
 }
 
-static uint16_t encode_topology_application_type(uint8_t* packet_buffer) {
-#define TOPOLOGY_APPLICATION_TYPE 1
-    packet_buffer[0] = TOPOLOGY_APPLICATION_TYPE;
-    return 1; /* size of application type */
-}
-
 static uint16_t encode_topology(uint8_t* packet_buffer) {
     LOG_INFO("Encoding the topology\n");
-    uint16_t packet_size = encode_topology_application_type(packet_buffer);
-    packet_size += encode_rpl_neighbors(packet_buffer + packet_size);
-    return packet_size;
+    return encode_rpl_neighbors(packet_buffer);
 }
 
 /* TODO: This function sends all the neighbor in one packet but this might not work if this node has

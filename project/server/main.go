@@ -42,6 +42,7 @@ func main() {
 	}
 
 	server := udpack.NewUDPAckServer(conn, nil)
+	stats.SimulationStats.Timeout = server.Config.Timeout.Seconds()
 	appGraph := applications.NewApplicationGraph(nClients)
 	appBandwidth := applications.NewApplicationBandwidth(nClients)
 	appTopology := applications.NewApplicationTopology(nClients)

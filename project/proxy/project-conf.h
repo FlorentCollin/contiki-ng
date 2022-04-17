@@ -80,6 +80,6 @@
 
 /* Size of the application-specific schedule; a number relatively prime to the hopseq length */
 /* Same as TSCH_SCHEDULE_CONF_DEFAULT_LENGTH */
-#define APP_SLOTFRAME_SIZE 73
+#define APP_SLOTFRAME_SIZE 101
 
 #endif /* PROJECT_CONF_H_ */

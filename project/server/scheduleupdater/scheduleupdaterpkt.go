@@ -54,7 +54,7 @@ func (updater *Updater) UpdateClients(schedule *Schedule, rplGraph *applications
 	}
 	log.Println("No errors detected while sending the new schedule 🎉")
 
-    order := rplGraph.LeavesToRootOrder()
+	order := rplGraph.LeavesToRootOrder()
 	// Update complete
 	updateCompleteErrors := updater.sendToEachClientSync(func(clientIP addrtranslation.IPString) ([][]byte, error) {
 		updateCompletePkt := UpdateConfirmation{}

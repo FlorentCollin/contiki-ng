@@ -42,6 +42,7 @@ type Stats struct {
 	ScheduleUpdateStart time.Time `json:"scheduleUpdateStart,omitempty"`
 	ScheduleUpdateEnd   time.Time `json:"scheduleUpdateEnd,omitempty"`
 	Nclients            uint      `json:"nclients,omitempty"`
+	Timeout             float64   `json:"timeoutS,omitempty"`
 }
 
 var SimulationStats = Stats{

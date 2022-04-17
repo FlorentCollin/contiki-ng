@@ -2,7 +2,7 @@ var FileWriter = Java.type("java.io.FileWriter");
 
 TIMEOUT(18000000, log.testOK());
 var updateSpeedLimit = 1.0;
-var speedLimit = 250.0;
+var speedLimit = 1000.0;
 sim.setSpeedLimit(speedLimit);
 
 var timestamp = Date.now()
@@ -49,13 +49,14 @@ while(Object.keys(completed).length < motesCount) {
     }
     YIELD();
 }
-var stats = {}
-stats.firstScheduleMsgTime = firstScheduleMsgTime;
-stats.tx = tx;
-stats.rx = rx;
-stats.timeouts = timeouts;
-stats.scheduleInstallationTime = ((time - firstScheduleMsgTime) / 1000000 / speedLimit);
-stats.updateSpeedLimit = updateSpeedLimit;
+var stats = {
+    firstScheduleMsgTime: firstScheduleMsgTime,
+    tx: tx,
+    rx: rx,
+    timeouts: timeouts,
+    scheduleInstallationTime: ((time - firstScheduleMsgTime) / 1000000 / speedLimit),
+    updateSpeedLimit: updateSpeedLimit,
+}
 
 log.log(JSON.stringify(stats, null, 4));
 statsFile = new FileWriter("simulation-stats" + timestamp + ".json");
