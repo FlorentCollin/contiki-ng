@@ -77,25 +77,29 @@ func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP addrtransl
 type RPLGraph map[addrtranslation.IPString]*RPLLink
 
 func (rplGraph RPLGraph) LeavesToRootOrder() []addrtranslation.IPString {
-	order := make([]addrtranslation.IPString, len(rplGraph) + 1)
+	order := make([]addrtranslation.IPString, len(rplGraph)+1)
 	leaves := rplGraph.findLeaves()
 	fmt.Printf("RPLGraph: %+v\n", rplGraph)
 	fmt.Printf("Leaves: %+v\n", leaves)
-    index := len(order)-1
+	index := len(order) - 1
+
+	insertIfNotIn := func(value addrtranslation.IPString) {
+		for i := len(order) - 1; i > index; i-- {
+			if order[i] == value {
+				return
+			}
+		}
+		order[index] = value
+		index--
+	}
+
 	for _, leaf := range leaves {
-		order[index] = leaf
-        index--
+		insertIfNotIn(leaf)
 		for {
 			if link, in := rplGraph[leaf]; in {
-				order[index] = link.ParentIP
-                index--
+				insertIfNotIn(link.ParentIP)
 				leaf = link.ParentIP
 			} else {
-				if order[index+1] != leaf {
-					order = append(order, leaf)
-                    order[index] = leaf
-                    index--
-				}
 				break
 			}
 		}

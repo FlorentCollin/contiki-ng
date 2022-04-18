@@ -26,6 +26,9 @@ func newDataPacket(sequenceNumber uint8, packet []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	//if len(packet)+1 > 71 {
+		//panic("len(packet) + 1 should not exceed 71 to be contained in a frame IEEE802.15.4e")
+	//}
 	packetWithHeader := make([]byte, len(packet)+1)
 	packetWithHeader[0] = byte(header)
 	copy(packetWithHeader[1:], packet)

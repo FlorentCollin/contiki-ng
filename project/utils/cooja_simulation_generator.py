@@ -18,7 +18,7 @@ template_csc_file = """\
     <radiomedium>
       org.contikios.cooja.radiomediums.UDGM
       <transmitting_range>50.0</transmitting_range>
-      <interference_range>100.0</interference_range>
+      <interference_range>99.0</interference_range>
       <success_ratio_tx>1.0</success_ratio_tx>
       <success_ratio_rx>1.0</success_ratio_rx>
     </radiomedium>
@@ -220,6 +220,25 @@ def linear_topology_simulation(motes_count: int, first_mote_id: int, server_addr
     add_mote(simulation, proxy_identifier, first_mote_id, 0.0, 0.0)
     for i in range(first_mote_id + 1, first_mote_id + motes_count):
         add_mote(simulation, client_identifier, i, transmission_range * (i - first_mote_id), 0.0)
+    set_port(simulation, tunslip_port)
+    server_addr = ipaddress.ip_address(server_addr)
+    set_mote_commands(client, server_addr, server_port)
+    set_mote_commands(proxy, server_addr, server_port)
+    return simulation.toxml()
+
+def grid_topology_simulation(motes_count: int, first_mote_id: int, server_addr: str, server_port: int, tunslip_port: int) -> str:
+    simulation = parseString(template_csc_file)
+    client = find_motetype_by_description(simulation, "Client")
+    proxy = find_motetype_by_description(simulation, "Proxy")
+    client_identifier = get_motetype_identifier(client)
+    proxy_identifier = get_motetype_identifier(proxy)
+    transmission_range = find_transmission_range(simulation)
+
+    add_mote(simulation, proxy_identifier, first_mote_id, 0.0, 0.0)
+    for i in range(first_mote_id + 1, first_mote_id + motes_count):
+        x = ((i-1) % 3) * transmission_range
+        y = ((i-1) // 3) * transmission_range
+        add_mote(simulation, client_identifier, i, x, y)
     set_port(simulation, tunslip_port)
     server_addr = ipaddress.ip_address(server_addr)
     set_mote_commands(client, server_addr, server_port)

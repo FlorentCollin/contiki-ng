@@ -32,11 +32,11 @@ uint8_t decode_sequence_number(Header header);
 
 // RemoveHeaderFromPacket remove the header that contains a PacketType and a SequenceNumber
 // The header is a byte that has the following structure:
-// 0b1 0000111
-//   ^ ^^^^^^^
-//   | |
-//   | +------------ Sequence Number (last 7 bits)
-//   +-- PacketType (first bit)
+// 0b01 0000111
+//   ^  ^^^^^^^
+//   |  |
+//   |  +------------ Sequence Number (last 6 bits)
+//   +-- PacketType (two first bits)
 void remove_header_from_packet(const uint8_t* packet, Header* header);
 
 #endif /* PACKET_H_ */

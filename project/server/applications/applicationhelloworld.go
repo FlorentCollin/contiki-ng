@@ -18,5 +18,5 @@ func (app ApplicationHelloWorld) Type() AppType {
 
 func (app ApplicationHelloWorld) ProcessPacket(addr *net.UDPAddr, packet []byte) {
 	addrIP := addrtranslation.AddrToIPString(addr)
-	log.Println("Received an hello world packet from:", addrIP, " with content:", packet[0])
+	log.Printf("Received an hello world packet from: %s with content: %+v", addrIP, packet)
 }

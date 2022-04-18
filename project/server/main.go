@@ -133,7 +133,7 @@ func addOneCell(schedule *scheduleupdater.Schedule, mote addrtranslation.IPStrin
 		Channel:     0,
 	}
 	for channel := uint16(1); channel < 16; channel++ {
-		for timeslot := uint16(1); timeslot < 14; timeslot++ {
+		for timeslot := uint16(1); timeslot < 101; timeslot++ {
 			rxCell.TimeSlot = timeslot
 			rxCell.Channel = channel
 			txCell.TimeSlot = timeslot

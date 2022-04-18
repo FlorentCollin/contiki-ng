@@ -8,6 +8,7 @@
 #include "net/routing/rpl-lite/rpl.h"
 #include "sys/log.h"
 
+#include "contiki.h"
 #include "application-type.h"
 
 #define LOG_MODULE "BandwidthApplication"

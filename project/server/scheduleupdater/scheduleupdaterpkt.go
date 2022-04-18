@@ -74,7 +74,7 @@ func (updater *Updater) sendToEachClientAsync(serialize Serializer, order []addr
 	var wg sync.WaitGroup
 	//clientCount := len(updater.clients)
 	ackPackets := make(chan AckPacketOrError, 10000) // TODO MODIFY THIS SOULD NOT TAKE 1000 entries
-	for _, clientIP := range updater.clients {
+	for _, clientIP := range order {
 		wg.Add(1)
 		go updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
 	}
@@ -87,7 +87,7 @@ func (updater *Updater) sendToEachClientSync(serialize Serializer, order []addrt
 	var wg sync.WaitGroup
 	//clientCount := len(updater.clients)
 	ackPackets := make(chan AckPacketOrError, 10000) // TODO MODIFY THIS SOULD NOT TAKE 1000 entries
-	for _, clientIP := range updater.clients {
+	for _, clientIP := range order {
 		wg.Add(1)
 		updater.serializeAndSend(clientIP, serialize, ackPackets, &wg)
 	}
@@ -132,6 +132,7 @@ func (updater *Updater) serializeAndSend(clientIP addrtranslation.IPString, seri
 			Port: 8765,
 			Zone: "",
 		}
+        log.Println("Pkt size: ", len(pkt))
 		err, packet := updater.conn.WriteTo(pkt, udpAddr)
 		if err != nil {
 			utils.Log.ErrorPrintln(err.Error())

@@ -9,7 +9,7 @@
 #define LOG_MODULE "UDPAckServer"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define SEND_BUFFER_SIZE 512
+#define SEND_BUFFER_SIZE 1024
 static uint8_t send_buffer[SEND_BUFFER_SIZE] = {0};
 static int send_ready = 0;
 static uint16_t send_buffer_len;
@@ -46,10 +46,6 @@ static void udp_rx_callback(struct simple_udp_connection *c,
     remove_header_from_packet(data, &header);
     uint8_t sequence_number = decode_sequence_number(header);
     LOG_INFO("Received response with sequence_number %u \n", sequence_number);
-    if (highest_ack > sequence_number) {
-        LOG_INFO("ACK already sent, passing\n");
-        return;
-    }
     LOG_INFO("Sending ack %u\n", sequence_number);
     static uint8_t send_buffer[10] = {0};
 

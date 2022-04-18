@@ -6,7 +6,7 @@ from typing import List
 from time import sleep
 from sys import argv
 
-from cooja_simulation_generator import linear_topology_simulation
+from cooja_simulation_generator import linear_topology_simulation, grid_topology_simulation
 
 CONTIKI_DIR = "/home/florent/dev/contiki-ng"
 
@@ -86,8 +86,13 @@ def is_java_running():
     output = send_command("docker top contiki-container | grep java").stdout.strip()
     return len(output) != 0
 
-def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, server_port: int | str, tunslip_port: int | str, gui: bool):
-    simulation = linear_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
+def launch_simulation(topology: str, motes_count: int, first_mote_id: int, server_addr: str, server_port: int | str, tunslip_port: int | str, gui: bool):
+    if topology == "linear":
+        simulation = linear_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
+    elif topology == "grid":
+        simulation = grid_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
+    else:
+        raise ValueError("Topology argument should be linear or grid")
     host_prefix = "/home/florent/dev"
     docker_prefix = "/home/user/"
     simulation_filepath = "/contiki-ng/project/simulations/sim.csc"
@@ -114,9 +119,9 @@ def launch_simulation(motes_count: int, first_mote_id: int, server_addr: str, se
         close_window(tab_id)
 
 if __name__ == "__main__":
-    if len(argv) == 7:
-        gui = argv[6] == "gui" 
+    if len(argv) == 8:
+        gui = argv[7] == "gui" 
         print(argv)
-        launch_simulation(int(argv[1]), int(argv[2]), argv[3], argv[4], argv[5], gui)
+        launch_simulation(argv[1], int(argv[2]), int(argv[3]), argv[4], argv[5], argv[6], gui)
     else:
-        launch_simulation(2, 1, "fd00::1", 3000, 60001, False)
+        launch_simulation("linear", 2, 1, "fd00::1", 3000, 60001, False)

@@ -29,7 +29,7 @@ PROCESS_THREAD(topology_application, ev, data) {
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(AppTypeTopology, encode_topology);
-        etimer_reset(&timer);
+        etimer_set(&timer, 30 * CLOCK_SECOND);
     }
     PROCESS_END();
 }

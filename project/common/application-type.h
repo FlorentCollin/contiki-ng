@@ -5,6 +5,7 @@ enum ApplicationType {
     AppTypeGraph,
     AppTypeTopology,
     AppTypeBandwidth,
+    AppTypeHello,
     AppTypeAll
 };
 

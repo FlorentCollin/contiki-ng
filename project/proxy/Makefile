@@ -24,6 +24,7 @@ MAKE_ROUTING = MAKE_ROUTING_RPL_LITE
 
 
 include $(CONTIKI)/Makefile.dir-variables
+# MODULES += $(CONTIKI_NG_SERVICES_DIR)/orchestra
 MODULES += $(CONTIKI_NG_SERVICES_DIR)/rpl-border-router
 
 ifeq ($(MAKE_WITH_SECURITY),1)

@@ -30,7 +30,7 @@ func (sequenceNumberMap *SequenceNumbersMap) initializeAddrIP(addrIP addrtransla
 func (sequenceNumberMap *SequenceNumbersMap) increment(addrIP addrtranslation.IPString, currentSequenceNumber uint8) {
 	sequenceNumberMap.lock.Lock()
 	defer sequenceNumberMap.lock.Unlock()
-	if currentSequenceNumber > maxSequenceNumber {
+	if currentSequenceNumber >= maxSequenceNumber {
 		sequenceNumberMap.expectedSequenceNumbers[addrIP] = 0
 		return
 	}
@@ -38,10 +38,11 @@ func (sequenceNumberMap *SequenceNumbersMap) increment(addrIP addrtranslation.IP
 }
 
 func (sequenceNumberMap *SequenceNumbersMap) expected(addrIP addrtranslation.IPString) uint8 {
-	//sequenceNumberMap.lock.Lock()
-	//defer sequenceNumberMap.lock.Unlock()
+	sequenceNumberMap.lock.Lock()
 	if expectedSequenceNumber, in := sequenceNumberMap.expectedSequenceNumbers[addrIP]; in {
+		sequenceNumberMap.lock.Unlock()
 		return expectedSequenceNumber
 	}
+	sequenceNumberMap.lock.Unlock()
 	return sequenceNumberMap.initializeAddrIP(addrIP)
 }

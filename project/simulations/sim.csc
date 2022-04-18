@@ -11,7 +11,7 @@
     <radiomedium>
       org.contikios.cooja.radiomediums.UDGM
       <transmitting_range>50.0</transmitting_range>
-      <interference_range>100.0</interference_range>
+      <interference_range>99.0</interference_range>
       <success_ratio_tx>1.0</success_ratio_tx>
       <success_ratio_rx>1.0</success_ratio_rx>
     </radiomedium>
@@ -23,7 +23,7 @@
       <identifier>mtype522</identifier>
       <description>Proxy</description>
       <source>[CONTIKI_DIR]/project/proxy/proxy.c</source>
-      <commands>make proxy.cooja TARGET=cooja -j8 UDP_SERVER_PORT=3001 UDP_SERVER_ADDR={{253,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}}</commands>
+      <commands>make proxy.cooja TARGET=cooja -j8 UDP_SERVER_PORT=3002 UDP_SERVER_ADDR={{253,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}}</commands>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
       <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiVib</moteinterface>
@@ -48,7 +48,7 @@
       <identifier>mtype198</identifier>
       <description>Client</description>
       <source>[CONTIKI_DIR]/project/client/udp-client.c</source>
-      <commands>make udp-client.cooja TARGET=cooja -j8 UDP_SERVER_PORT=3001 UDP_SERVER_ADDR={{253,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}}</commands>
+      <commands>make udp-client.cooja TARGET=cooja -j8 UDP_SERVER_PORT=3002 UDP_SERVER_ADDR={{253,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}}</commands>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.Battery</moteinterface>
       <moteinterface>org.contikios.cooja.contikimote.interfaces.ContikiVib</moteinterface>
@@ -330,7 +330,7 @@
     org.contikios.cooja.serialsocket.SerialSocketServer
     <mote_arg>0</mote_arg>
     <plugin_config>
-      <port>60001</port>
+      <port>60002</port>
       <bound>true</bound>
     </plugin_config>
     <width>362</width>

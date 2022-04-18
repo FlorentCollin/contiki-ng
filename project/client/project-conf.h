@@ -25,5 +25,8 @@
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
 #define LINKADDR_CONF_SIZE 8
+/*  #define UIP_CONF_BUFFER_SIZE 127 */
+/* Disable fragmentation? */
+/* #define SICSLOWPAN_CONF_FRAGMENT_BUFFERS 1 */
 
 #endif /* PROJECT_CONF_H_ */

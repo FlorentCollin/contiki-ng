@@ -25,19 +25,21 @@ def timeToInstall(stats):
     nclients = [s["nclients"] for s in stats]
     maxClient = max(nclients)
     minClient = min(nclients)
-    data = [[] for n in range(minClient, maxClient + 1)]
+    data = [[] for _ in range(minClient, maxClient + 1)]
     startTimes = [pd.to_datetime(s["scheduleUpdateStart"]) for s in stats]
     endTimes = [pd.to_datetime(s["scheduleUpdateEnd"]) for s in stats]
     nclients = [s["nclients"] for s in stats]
     deltas = [(n, (e - s).total_seconds()) for (n, s, e) in zip(nclients, startTimes, endTimes)]
     for n, delta in deltas:
         data[n-minClient].append(delta)
-
+    data = list(filter(lambda d: len(d) !=0, data))
     nsimulations = [len(x) for x in data]
     # print(data)
     print(nsimulations)
     ax = sns.boxplot(data=data)
-    ax.set_xticklabels(list(range(minClient, maxClient+1)))
+    clients = list(set(s["nclients"] for s in stats))
+    clients.sort()
+    ax.set_xticklabels(clients)
     ax.set_title("Temps(s) pour installer un nouvel ordonnancement")
     ax.set_ylabel("Temps(s)")
     ax.set_xlabel("Nombre de nœuds du WSN")
@@ -47,6 +49,8 @@ def timeToInstall(stats):
 
 def timeouts1(stats, nclients=9):
     stats = list(filter(lambda s: s["nclients"] == nclients, stats))
+    if not stats:
+        return
     data = {}
     for s in stats:
         try:
@@ -61,7 +65,9 @@ def timeouts1(stats, nclients=9):
     keys = sorted(data.keys())
     data = [data[k] for k in keys]
     ax = sns.boxplot(data=data)
-    ax.set_xticklabels(list(range(1, nclients+1)))
+    clients = list(set(s["nclients"] for s in stats))
+    clients.sort()
+    ax.set_xticklabels(clients)
     ax.set_title(f"Nombre de timeouts par nœud pour une topologie linéaire de {nclients} nœuds")
     ax.set_ylabel("Nombre de timeouts")
     ax.set_xlabel("Nœud")

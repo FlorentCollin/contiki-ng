@@ -29,7 +29,7 @@ PROCESS_THREAD(graph_application, ev, data) {
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(AppTypeGraph, encode_graph);
-        etimer_reset(&timer);
+        etimer_set(&timer, 30 * CLOCK_SECOND);
     }
     PROCESS_END();
 }
