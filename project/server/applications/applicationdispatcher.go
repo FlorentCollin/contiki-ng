@@ -53,7 +53,7 @@ func (dispatcher *AppDispatcher) Subscribe(app App) *AppDispatcher {
 	return dispatcher
 }
 
-// Handler handles a `packet` coming from a address `addr` and dispatches
+// Handler handles a `packet` coming from an address `addr` and dispatches
 // the `packet` to the corresponding applications.
 func (dispatcher *AppDispatcher) Handler(addr *net.UDPAddr, packet []byte) {
 	appType, packetWithoutAppType := removeAppType(packet)

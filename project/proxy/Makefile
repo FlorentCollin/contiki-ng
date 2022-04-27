@@ -14,13 +14,13 @@ PLATFORMS_ONLY = cooja
 CONTIKI=../..
 
 PROJECTDIRS += ../common
-PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c graph-application.c topology-application.c bandwidth-application.c
+PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c graph-application.c topology-application.c bandwidth-application.c stats-print.c
 
 # force Security from command line
 MAKE_WITH_SECURITY ?= 0
 
 MAKE_MAC = MAKE_MAC_TSCH
-MAKE_ROUTING = MAKE_ROUTING_RPL_LITE
+MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 
 
 include $(CONTIKI)/Makefile.dir-variables

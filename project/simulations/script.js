@@ -20,11 +20,15 @@ var rxMsg = "Received";
 var rx = Array(motesCount);
 var timeoutMsg = "Timer expired";
 var timeouts = Array(motesCount);
+var linkStatsMsg = "neighbor";
+var linkStats = Array(motesCount);
 for (var i = 0; i < motesCount; i++) {
     tx[i] = 0;
     rx[i] = 0;
     timeouts[i] = 0;
+    linkStats[i] = {};
 }
+
 
 while(Object.keys(completed).length < motesCount) {
     outputLog.write(id + ":" + msg + "\n");
@@ -38,13 +42,21 @@ while(Object.keys(completed).length < motesCount) {
         tx[id-1]++;
     } else if (msg.contains(timeoutMsg)) {
         timeouts[id-1]++;
-    } else if (msg.contains("Graph n_links:")) {
-        splits = msg.split(":")
-        nLinks = Number(splits[splits.length - 1])
-        outputLog.write("NLINKS: " + nLinks + '\n');
-        if (nLinks === motesCount - 1) {
+    } else if (msg.contains("Switching parent")) {
+        if (id === motesCount) {
             sim.setSpeedLimit(updateSpeedLimit);
             outputLog.write("SETTING SPEED LIMIT\n");
+        }
+    } else if (msg.contains(linkStatsMsg)) {
+        splits = msg.split("{");
+        try {
+
+        stats = JSON.parse("{" + splits[splits.length - 1]);
+        neighbor = stats.neighbor;
+        delete stats.neighbor;
+        linkStats[id-1][neighbor] = stats;
+        } catch(e) {
+            // do nothing
         }
     }
     YIELD();
@@ -54,8 +66,9 @@ var stats = {
     tx: tx,
     rx: rx,
     timeouts: timeouts,
-    scheduleInstallationTime: ((time - firstScheduleMsgTime) / 1000000 / speedLimit),
+    linkStats: linkStats,
     updateSpeedLimit: updateSpeedLimit,
+    scheduleInstallationTime: ((time - firstScheduleMsgTime) / 1000000 / speedLimit),
 }
 
 log.log(JSON.stringify(stats, null, 4));
@@ -64,7 +77,7 @@ statsFile.write(JSON.stringify(stats, null, 4));
 statsFile.close()
 outputLog.close();
 
-GENERATE_MSG(500, "sleep"); //Wait for 0.5 secondes
+GENERATE_MSG(5000, "sleep"); //Wait for 5 secondes
 
 YIELD_THEN_WAIT_UNTIL(msg.equals("sleep"));
 log.testOK();

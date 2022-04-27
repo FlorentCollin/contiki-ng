@@ -2,10 +2,11 @@ package udpack
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"scheduleupdater-server/addrtranslation"
-    "scheduleupdater-server/stats"
+	"scheduleupdater-server/stats"
 	"scheduleupdater-server/utils"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ func NewUDPAckServer(conn *net.UDPConn, config *UDPAckConnSendConfig) *UDPAckCon
 	if config == nil {
 		config = newDefaultUDPAckConnSendConfig()
 	}
+	fmt.Println("Timeout value: ", config.Timeout)
 	return &UDPAckConn{
 		Config:                   config,
 		conn:                     conn,
@@ -216,6 +218,6 @@ func newDefaultUDPAckConnSendConfig() *UDPAckConnSendConfig {
 	return &UDPAckConnSendConfig{
 		MaxRetries:          100,
 		TimesBetweenRetries: 5 * time.Second,
-		Timeout:             15 * time.Second,
+		Timeout:             25 * time.Second,
 	}
 }

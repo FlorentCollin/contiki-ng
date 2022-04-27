@@ -38,7 +38,8 @@ def close_window(window_id: str, send_sigint: bool=True):
 def launch_server(n_motes: int, first_mote_id: int, port: int) -> str:
     commands = [
         f"cd {CONTIKI_DIR}/project/server",
-        f"go run main.go {n_motes} {first_mote_id} {port}"
+        # f"go run main.go {n_motes} {first_mote_id} {port} {n_motes * 3}"
+        f"go run main.go {n_motes} {first_mote_id} {port} {n_motes * 2}"
     ]
     return launch_window(commands)
 

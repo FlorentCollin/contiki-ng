@@ -1,7 +1,6 @@
 package applications
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -29,11 +28,9 @@ func (app *ApplicationGraph) Type() AppType {
 	return AppTypeGraph
 }
 
-func (app *ApplicationGraph) ProcessPacket(_ *net.UDPAddr, packet []byte) {
-	graphUpdates := decodeGraphUpdateData(packet)
-	for _, update := range graphUpdates {
-		app.updateGraph(&update)
-	}
+func (app *ApplicationGraph) ProcessPacket(addr *net.UDPAddr, packet []byte) {
+	graphUpdate := decodeGraphUpdateData(addr.IP, packet)
+	app.updateGraph(&graphUpdate)
 }
 
 func (app *ApplicationGraph) Ready() bool {
@@ -44,34 +41,15 @@ func (app *ApplicationGraph) Ready() bool {
 }
 
 func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
+	// This is mostly a hack and should not be done.
 	childIPString := addrtranslation.IPString(graphUpdate.ChildIP.String())
-	parentIPString := addrtranslation.IPString(graphUpdate.ParentIP.String())
+	parentIPString := addrtranslation.IPString(graphUpdate.ParentIP.String()).LinkLocalToGlobal()
 	if v, in := app.Graph[childIPString]; !in || v.ParentIP != parentIPString {
 		log.Printf("Adding RPL Link: from %s to %s\n", childIPString, parentIPString)
 		app.Graph[childIPString] = &RPLLink{
-			ParentIP:    parentIPString,
-			ExpiredTime: time.Now().Add(time.Duration(graphUpdate.Lifetime) * time.Second),
-		}
-		go app.removeRPLLinkWhenLifetimeExpired(childIPString, graphUpdate.Lifetime)
-	}
-}
-
-func (app *ApplicationGraph) removeRPLLinkWhenLifetimeExpired(childIP addrtranslation.IPString, lifetime uint32) {
-	time.Sleep(time.Duration(lifetime) * time.Second)
-	app.lock.RLock()
-	defer app.lock.RUnlock()
-	rplLink, in := app.Graph[childIP]
-	if !in || time.Now().Before(rplLink.ExpiredTime) {
-		return
-	}
-
-	// Delete the child only if there is not another node that have a link to this child
-	for _, link := range app.Graph {
-		if link.ParentIP == childIP {
-			return
+			ParentIP: parentIPString,
 		}
 	}
-	delete(app.Graph, childIP)
 }
 
 type RPLGraph map[addrtranslation.IPString]*RPLLink
@@ -79,18 +57,16 @@ type RPLGraph map[addrtranslation.IPString]*RPLLink
 func (rplGraph RPLGraph) LeavesToRootOrder() []addrtranslation.IPString {
 	order := make([]addrtranslation.IPString, len(rplGraph)+1)
 	leaves := rplGraph.findLeaves()
-	fmt.Printf("RPLGraph: %+v\n", rplGraph)
-	fmt.Printf("Leaves: %+v\n", leaves)
-	index := len(order) - 1
+	index := 0
 
 	insertIfNotIn := func(value addrtranslation.IPString) {
-		for i := len(order) - 1; i > index; i-- {
+		for i := 0; i < index; i++ {
 			if order[i] == value {
 				return
 			}
 		}
 		order[index] = value
-		index--
+		index++
 	}
 
 	for _, leaf := range leaves {
@@ -104,7 +80,7 @@ func (rplGraph RPLGraph) LeavesToRootOrder() []addrtranslation.IPString {
 			}
 		}
 	}
-
+	fmt.Printf("ORDER: %+v", order)
 	return order
 }
 
@@ -134,20 +110,12 @@ type RPLLink struct {
 type GraphTopologyUpdate struct {
 	ChildIP  net.IP
 	ParentIP net.IP
-	Lifetime uint32
 }
 
-func decodeGraphUpdateData(data []byte) []GraphTopologyUpdate {
+func decodeGraphUpdateData(addr net.IP, data []byte) GraphTopologyUpdate {
 	// TODO: refactor this part, and don't rely on magic number
-	const updateSize = 16*2 + 4
-	updates := make([]GraphTopologyUpdate, len(data)/updateSize)
-	for i := 0; i < len(updates); i += 1 {
-		// something is maybe wrong here since we get an addr fd00::2201:208:8:8:8
-		updates[i] = GraphTopologyUpdate{
-			ChildIP:  data[i*updateSize : i*updateSize+16],
-			ParentIP: data[i*updateSize+16 : i*updateSize+32],
-			Lifetime: binary.LittleEndian.Uint32(data[i*updateSize+32 : i*updateSize+32+4]),
-		}
+	return GraphTopologyUpdate{
+		ParentIP: data[:16],
+		ChildIP:  addr,
 	}
-	return updates
 }

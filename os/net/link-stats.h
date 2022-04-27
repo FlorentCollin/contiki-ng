@@ -34,6 +34,7 @@
 #define LINK_STATS_H_
 
 #include "net/linkaddr.h"
+#include "os/net/nbr-table.h"
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
 #ifdef LINK_STATS_CONF_ETX_DIVISOR
@@ -62,6 +63,8 @@
 #else /* LINK_STATS_CONF_PACKET_COUNTERS */
 #define LINK_STATS_PACKET_COUNTERS           0
 #endif /* LINK_STATS_PACKET_COUNTERS */
+
+NBR_TABLE_DECLARE(link_stats);
 
 typedef uint16_t link_packet_stat_t;
 

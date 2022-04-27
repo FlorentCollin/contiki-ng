@@ -67,7 +67,7 @@
 #define ETX_DEFAULT                      2
 
 /* Per-neighbor link statistics table */
-NBR_TABLE(struct link_stats, link_stats);
+NBR_TABLE_GLOBAL(struct link_stats, link_stats);
 
 /* Called at a period of FRESHNESS_HALF_LIFE */
 struct ctimer periodic_timer;

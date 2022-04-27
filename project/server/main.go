@@ -25,7 +25,7 @@ func printHelp() {
 
 func main() {
 	utils.NewLogger(utils.LogLevelInfo, utils.WHITE)
-	nClients, firstMoteID, port, err := parseArgs()
+	nClients, firstMoteID, port, timeout, err := parseArgs()
 	stats.SimulationStats.Nclients = nClients
 	if err != nil {
 		fmt.Println(err)
@@ -41,7 +41,12 @@ func main() {
 		log.Panic(err)
 	}
 
-	server := udpack.NewUDPAckServer(conn, nil)
+	config := udpack.UDPAckConnSendConfig{
+		MaxRetries:          100,
+		TimesBetweenRetries: 1,
+		Timeout:             time.Duration(time.Duration(timeout) * time.Second),
+	}
+	server := udpack.NewUDPAckServer(conn, &config)
 	stats.SimulationStats.Timeout = server.Config.Timeout.Seconds()
 	appGraph := applications.NewApplicationGraph(nClients)
 	appBandwidth := applications.NewApplicationBandwidth(nClients)
@@ -163,21 +168,25 @@ func addOneCell(schedule *scheduleupdater.Schedule, mote addrtranslation.IPStrin
 	return errors.New("no available cell left")
 }
 
-func parseArgs() (uint, uint, int, error) {
-	if len(os.Args) != 4 {
-		return 0, 0, 0, errors.New("wrong command line usage")
+func parseArgs() (uint, uint, int, int, error) {
+	if len(os.Args) != 5 {
+		return 0, 0, 0, 0, errors.New("wrong command line usage")
 	}
 	nClients, err := strconv.Atoi(os.Args[1])
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 	firstMoteID, err := strconv.Atoi(os.Args[2])
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 	port, err := strconv.Atoi(os.Args[3])
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, 0, err
 	}
-	return uint(nClients), uint(firstMoteID), port, nil
+	timeout, err := strconv.Atoi(os.Args[4])
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	return uint(nClients), uint(firstMoteID), port, timeout, nil
 }

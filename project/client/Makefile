@@ -10,7 +10,7 @@ CFLAGS += -DUDP_SERVER_ADDR=$(UDP_SERVER_ADDR)
 endif
 
 PROJECTDIRS += ../common
-PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c topology-application.c bandwidth-application.c
+PROJECT_SOURCEFILES += schedule_updater.c udpack-server.c packet.c topology-application.c bandwidth-application.c graph-application.c stats-print.c
 
 PLATFORMS_ONLY = cooja
 
@@ -20,7 +20,7 @@ CONTIKI=../..
 MAKE_WITH_SECURITY ?= 0
 
 MAKE_MAC = MAKE_MAC_TSCH
-MAKE_ROUTING = MAKE_ROUTING_RPL_LITE
+MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 
 # MODULES += $(CONTIKI_NG_SERVICES_DIR)/orchestra
 

@@ -30,10 +30,12 @@ func NewMacIPTranslation() MacIPTranslation {
 }
 
 func (macIPTranslation *MacIPTranslation) Add(macAddr *MacAddr, ip IPString) {
-	macIPTranslation.MacIPaddrs = append(macIPTranslation.MacIPaddrs, &MacIPPair{
-		mac: macAddr,
-		ip:  ip,
-	})
+	if _, in := macIPTranslation.Find(macAddr); !in {
+		macIPTranslation.MacIPaddrs = append(macIPTranslation.MacIPaddrs, &MacIPPair{
+			mac: macAddr,
+			ip:  ip,
+		})
+	}
 }
 
 func (macIPTranslation *MacIPTranslation) Find(macAddr *MacAddr) (IPString, bool) {

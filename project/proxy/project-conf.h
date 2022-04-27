@@ -67,7 +67,7 @@
 #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_INFO
+#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_WARN
@@ -76,7 +76,9 @@
 #define LINKADDR_CONF_SIZE 8
 
 /* Size of the application-specific schedule; a number relatively prime to the hopseq length */
-/* Same as TSCH_SCHEDULE_CONF_DEFAULT_LENGTH */
-#define APP_SLOTFRAME_SIZE 101
+#define APP_SLOTFRAME_SIZE 21
+#define TSCH_SCHEDULE_CONF_DEFAULT_LENGTH 21
+
+#define LINK_STATS_CONF_PACKET_COUNTERS 1
 
 #endif /* PROJECT_CONF_H_ */

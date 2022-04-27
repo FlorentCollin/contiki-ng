@@ -2,7 +2,7 @@
 
 #include "contiki.h"
 #include "etimer.h"
-#include "net/ipv6/uip-sr.h"
+#include "net/ipv6/uip-ds6-nbr.h"
 #include "net/ipv6/uip.h"
 #include "net/routing/rpl-lite/rpl.h"
 #include "sys/log.h"
@@ -19,7 +19,7 @@ PROCESS(topology_application, "Topology Application");
 void topology_application_start() { process_start(&topology_application, NULL); }
 
 static uint16_t encode_topology(uint8_t* packet_buffer);
-static uint16_t encode_rpl_neighbors(uint8_t* packet_buffer);
+static uint16_t encode_neighbors(uint8_t* packet_buffer);
 
 static struct etimer timer;
 PROCESS_THREAD(topology_application, ev, data) {
@@ -36,25 +36,26 @@ PROCESS_THREAD(topology_application, ev, data) {
 
 static uint16_t encode_topology(uint8_t* packet_buffer) {
     LOG_INFO("Encoding the topology\n");
-    return encode_rpl_neighbors(packet_buffer);
+    return encode_neighbors(packet_buffer);
 }
 
 /* TODO: This function sends all the neighbor in one packet but this might not work if this node has
-   to many neighbors. This should be refactor to send multiples packets. For testing it's ok
+   to many neighbors. This should be refactor to send multiples packets. For testing it's ok though.
 */
-static uint16_t encode_rpl_neighbors(uint8_t* packet_buffer) {
-    rpl_nbr_t* nbr = nbr_table_head(rpl_neighbors);
-    const linkaddr_t* nbr_ip;
+static uint16_t encode_neighbors(uint8_t* packet_buffer) {
     uint16_t index = 0;
     // The first lladdr in the packet is the lladdr of the host.
     memcpy(packet_buffer + index, &uip_lladdr, sizeof(uip_lladdr));
     index += sizeof(uip_lladdr);
-    
-    while (nbr != NULL) {
-        nbr_ip = rpl_neighbor_get_lladdr(nbr);
-        memcpy(packet_buffer + index, nbr_ip, sizeof(*nbr_ip));
-        index += sizeof(*nbr_ip);
-        nbr = nbr_table_next(rpl_neighbors, nbr);
+
+    // The rest is the neighbors lladdr.
+    uip_ds6_nbr_t *nbr;
+    linkaddr_t* nbr_lladdr;
+    for(nbr = uip_ds6_nbr_head(); nbr != NULL; nbr = uip_ds6_nbr_next(nbr)) {
+        nbr_lladdr = (linkaddr_t *) uip_ds6_nbr_lladdr_from_ipaddr(&nbr->ipaddr);
+        memcpy(packet_buffer + index, nbr_lladdr, sizeof(*nbr_lladdr));
+        index += sizeof(*nbr_lladdr);
     }
+    LOG_INFO("TOPOLOGY size: %u\n", index);
     return index;
 }
