@@ -30,7 +30,7 @@ static struct etimer timer;
 PROCESS_THREAD(bandwidth_application, ev, data) {
     PROCESS_BEGIN();
     LOG_INFO("Topology application started\n");
-    etimer_set(&timer, 30 * CLOCK_SECOND);
+    etimer_set(&timer, 90 * CLOCK_SECOND);
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(AppTypeBandwidth, encode_bandwidth);

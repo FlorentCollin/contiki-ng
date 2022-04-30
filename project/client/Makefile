@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = client
+CONTIKI_PROJECT = udp-client
 all: $(CONTIKI_PROJECT)
 
 ifdef UDP_SERVER_PORT

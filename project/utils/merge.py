@@ -40,6 +40,7 @@ def timeToInstall(stats):
     clients = list(set(s["nclients"] for s in stats))
     clients.sort()
     ax.set_xticklabels(clients)
+    ax.set_ylim(0)
     ax.set_title("Temps(s) pour installer un nouvel ordonnancement")
     ax.set_ylabel("Temps(s)")
     ax.set_xlabel("Nombre de nœuds du WSN")

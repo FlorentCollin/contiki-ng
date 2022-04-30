@@ -23,7 +23,8 @@ void schedule_updater_pkt_encode(uint8_t *dest, struct schedule_updater_pkt *pkt
     memcpy(&dest[UPDATE_PKT_NEIGHBOR_ADDR_OFFSET], &pkt->neighbor_addr, 8);
     dest[UPDATE_PKT_CELLS_COUNT_OFFSET] = pkt->cell_count;
     int index = UPDATE_PKT_CELL_START(0);
-    for (int i = 0; i < pkt->cell_count; i++) {
+    int i;
+    for (i = 0; i < pkt->cell_count; i++) {
         dest[index++] = pkt->cells[i].link_options;
         memcpy(&dest[index], &pkt->cells[i].timeslot, sizeof(pkt->cells[i].timeslot));
         index += sizeof(pkt->cells[i].timeslot);
@@ -66,7 +67,8 @@ uint16_t update_pkt_cell_channel(const uint8_t *pkt_raw, uint8_t cell_number) {
 void update_pkt_add_cells(const uint8_t *pkt, struct tsch_slotframe *sf) {
     uint8_t cell_count = update_pkt_cells_count(pkt);
     
-    for (uint8_t i = 0; i < cell_count; i++) {
+    uint8_t i;
+    for (i = 0; i < cell_count; i++) {
         uint8_t link_options = update_pkt_cell_link_options(pkt, i);
         uint16_t timeslot = update_pkt_cell_timeslot(pkt, i);
         uint16_t channel = update_pkt_cell_channel(pkt, i);
@@ -130,7 +132,8 @@ void update_pkt_log(const uint8_t *pkt) {
             LOG_PRINT("\n");
             LOG_INFO("  pkt->cell_count = %d\n", update_pkt_cells_count(pkt));
             LOG_INFO("  pkt->cell_ids =\n");
-            for (uint8_t i = 0; i < update_pkt_cells_count(pkt); i++) {
+            uint8_t i;
+            for (i = 0; i < update_pkt_cells_count(pkt); i++) {
                 LOG_INFO("       (%d) link_options = %d\n", i, update_pkt_cell_link_options(pkt, i));
                 LOG_INFO("       (%d) timeslot = %d\n", i, update_pkt_cell_timeslot(pkt, i));
                 LOG_INFO("       (%d) channel = %d\n", i, update_pkt_cell_channel(pkt, i));

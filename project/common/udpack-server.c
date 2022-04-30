@@ -115,7 +115,7 @@ PROCESS_THREAD(udpack_process, ev, encoder) {
             etimer_set(&resend_interval, 10 * CLOCK_SECOND);
             PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_POLL || ev == PROCESS_EVENT_TIMER);
             if (ev == PROCESS_EVENT_TIMER) {
-                LOG_INFO("Timer expired, retrying to send the packet\n", i);
+                LOG_INFO("Timer expired, retrying to send the packet %d\n", i);
                 LOG_INFO("Sending %d bytes to the server\n", send_buffer_len);
                 simple_udp_send(&udp_conn, &send_buffer, send_buffer_len);
                 etimer_reset(&resend_interval);
