@@ -34,24 +34,26 @@ func (d *IncDict) Increment(ip addrtranslation.IPString) {
 }
 
 type Stats struct {
-	Nsent               IncDict   `json:"nsent,omitempty"`
-	Nreceived           IncDict   `json:"nreceived,omitempty"`
-	Timeouts            IncDict   `json:"timeouts,omitempty"`
-	ProtocolSent        IncDict   `json:"protocolSent,omitempty"`
-	ProtocolReceived    IncDict   `json:"protocolReceived,omitempty"`
-	ScheduleUpdateStart time.Time `json:"scheduleUpdateStart,omitempty"`
-	ScheduleUpdateEnd   time.Time `json:"scheduleUpdateEnd,omitempty"`
-	Nclients            uint      `json:"nclients,omitempty"`
-	Timeout             float64   `json:"timeoutS,omitempty"`
+	Nsent                      IncDict   `json:"nsent,omitempty"`
+	Nreceived                  IncDict   `json:"nreceived,omitempty"`
+	Timeouts                   IncDict   `json:"timeouts,omitempty"`
+	TimeoutsBeforeConfirmation IncDict   `json:"timeoutsBeforeConfirmation,omitempty"`
+	ProtocolSent               IncDict   `json:"protocolSent,omitempty"`
+	ProtocolReceived           IncDict   `json:"protocolReceived,omitempty"`
+	ScheduleUpdateStart        time.Time `json:"scheduleUpdateStart,omitempty"`
+	ScheduleUpdateEnd          time.Time `json:"scheduleUpdateEnd,omitempty"`
+	Nclients                   uint      `json:"nclients,omitempty"`
+	Timeout                    float64   `json:"timeoutS,omitempty"`
 }
 
 var SimulationStats = Stats{
-	Nreceived:        NewIncDict(),
-	Nsent:            NewIncDict(),
-	Timeouts:         NewIncDict(),
-	ProtocolSent:     NewIncDict(),
-	ProtocolReceived: NewIncDict(),
-	Nclients:         0,
+	Nreceived:                  NewIncDict(),
+	Nsent:                      NewIncDict(),
+	Timeouts:                   NewIncDict(),
+	TimeoutsBeforeConfirmation: NewIncDict(),
+	ProtocolSent:               NewIncDict(),
+	ProtocolReceived:           NewIncDict(),
+	Nclients:                   0,
 }
 
 func (stats *Stats) WriteToFile(prefix string) {
@@ -64,5 +66,12 @@ func (stats *Stats) WriteToFile(prefix string) {
 	err = os.WriteFile(filename, statsJson, 0644)
 	if err != nil {
 		log.Panicln(err)
+	}
+}
+
+func (stats *Stats) CopyTimeouts() {
+	timeouts := stats.Timeouts.IPMap
+	for k, v := range timeouts {
+		stats.TimeoutsBeforeConfirmation.IPMap[k] = v
 	}
 }

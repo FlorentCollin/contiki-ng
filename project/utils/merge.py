@@ -6,7 +6,9 @@ def load_files(filenames):
     for filename in filenames:
         # print(f"Loading filename: {filename}...")
         with open(filename) as f:
-            res.append(json.load(f))
+            stats = json.load(f)
+            stats["filename"] = filename
+            res.append(stats)
     return res
 
 def merge(filenames):
@@ -79,6 +81,7 @@ def timeouts2(stats):
     #Timeouts vs installation time
     data=[]
     for s in stats:
+        filename = s["filename"]
         start = pd.to_datetime(s["scheduleUpdateStart"])
         end = pd.to_datetime(s["scheduleUpdateEnd"])
         installation_time = (end - start).total_seconds()
@@ -88,9 +91,10 @@ def timeouts2(stats):
             total_timeout = sum(v for v in timeouts.values())
         except:
             total_timeout = 0
-        data.append([installation_time, total_timeout, s["nclients"]])
+        data.append([filename, installation_time, total_timeout, s["nclients"]])
 
-    df = pd.DataFrame(data, columns=["installation_time", "total_timeout", "Nombre de nœuds"])
+    df = pd.DataFrame(data, columns=["filename", "installation_time", "total_timeout", "Nombre de nœuds"])
+    print(df.sort_values(by=["total_timeout", "installation_time"]).to_string())
 
     ax = sns.scatterplot(data=df, x="total_timeout", y="installation_time", hue="Nombre de nœuds", palette="deep")
     ax.set_xlim(0)

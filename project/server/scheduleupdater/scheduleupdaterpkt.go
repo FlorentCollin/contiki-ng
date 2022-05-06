@@ -53,6 +53,7 @@ func (updater *Updater) UpdateClients(schedule *Schedule, rplGraph *applications
 		}
 	}
 	log.Println("No errors detected while sending the new schedule 🎉")
+	stats.SimulationStats.CopyTimeouts()
 
 	order := rplGraph.LeavesToRootOrder()
 	// Update complete
@@ -132,7 +133,7 @@ func (updater *Updater) serializeAndSend(clientIP addrtranslation.IPString, seri
 			Port: 8765,
 			Zone: "",
 		}
-        log.Println("Pkt size: ", len(pkt))
+		log.Println("Pkt size: ", len(pkt))
 		err, packet := updater.conn.WriteTo(pkt, udpAddr)
 		if err != nil {
 			utils.Log.ErrorPrintln(err.Error())
