@@ -44,7 +44,7 @@ PROCESS_THREAD(graph_application, ev, data) {
         if (parent_ipaddr != NULL) {
             send_server(AppTypeGraph, encode_graph);
         }
-        etimer_set(&timer, 90 * CLOCK_SECOND);
+        etimer_set(&timer, 30 * CLOCK_SECOND);
     }
     PROCESS_END();
 }
