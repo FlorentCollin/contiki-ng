@@ -31,6 +31,7 @@ PROCESS(udpack_process, "UDP Ack Process");
 /*---------------------------------------------------------------------------*/
 
 static uint16_t highest_ack = 0;
+static uint16_t received = 0;
 static void udp_rx_callback(struct simple_udp_connection *c,
                             const uip_ipaddr_t *sender_addr,
                             uint16_t sender_port,
@@ -53,7 +54,9 @@ static void udp_rx_callback(struct simple_udp_connection *c,
     // encode the confirmation message for now we accept every new schedule sent to us
 #define CONFIRMATION 1
     send_buffer[len++] = CONFIRMATION;
-    simple_udp_sendto(c, send_buffer, 10, sender_addr);
+    if (received++ >= 10) {
+        simple_udp_sendto(c, send_buffer, 10, sender_addr);
+    }
 
     if (sequence_number <= highest_ack) {
         LOG_INFO("Packet already process, only sending ACK\n");
