@@ -78,7 +78,7 @@ func main() {
 			time.Sleep(time.Second * 4)
 		}
 		//schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 1; i++ {
 			schedule := scheduleAB(i, &appTopology.Topology)
 			updater := scheduleupdater.NewUpdater(server, addrs)
 			updater.UpdateClients(&schedule, &appGraph.Graph)

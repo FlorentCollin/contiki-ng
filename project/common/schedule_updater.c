@@ -127,7 +127,7 @@ void update_pkt_dispatch(const uint8_t *pkt, uint16_t packet_len) {
             npacket++;
             break;
         case schedule_updater_pkt_type_update_complete:
-            ctimer_set(&timer, 5 * CLOCK_SECOND, update_use_slotframe, NULL);
+            ctimer_set(&timer, 60 * 60 * CLOCK_SECOND, update_use_slotframe, NULL);
             break;
     }
 }
