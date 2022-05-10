@@ -62,7 +62,7 @@ static void udp_rx_callback(struct simple_udp_connection *c,
     highest_ack = sequence_number;
 
     const uint8_t *pkt = data + 1;
-    update_pkt_dispatch(pkt);
+    update_pkt_dispatch(pkt, datalen);
 }
 
 static void ack_middleware(struct simple_udp_connection *c,

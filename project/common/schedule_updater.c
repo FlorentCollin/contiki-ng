@@ -5,6 +5,7 @@
 #include "sys/node-id.h"
 #include "net/ipv6/uip-ds6-nbr.h"
 #include "net/mac/tsch/tsch-schedule.h"
+#include "sys/ctimer.h"
 
 #define LOG_MODULE "schedule_updater"
 #define LOG_LEVEL LOG_LEVEL_INFO
@@ -81,40 +82,54 @@ void update_pkt_add_cells(const uint8_t *pkt, struct tsch_slotframe *sf) {
     }
 }
 
-// static uint16_t other_slotframe_handle(uint16_t current_slotframe_handle) {
-//     /* if current_slotframe_handle == 1 then 2 else 1 */
-//     return (current_slotframe_handle % 2) + 1;
-// }
+#define MAX_UPDATE_PACKET_SIZE 512
+#define MAX_UPDATE_PACKETS_COUNT 10
 
-void update_pkt_dispatch(const uint8_t *pkt) {
-    update_pkt_log_type(pkt);
-    // static uint16_t slotframe_handle = 1;
-    // static bool in_update = false;
-    // static struct tsch_slotframe* slotframe = NULL;
-    // uint16_t other_handle;
-    // switch (update_pkt_type(pkt)) {
-    //     case schedule_updater_pkt_type_update:
-    //         if (!in_update) {
-    //             slotframe = tsch_schedule_add_slotframe(slotframe_handle, 21);
-    //             in_update = true;
-    //         }
-    //         if (slotframe == NULL) {
-    //             LOG_ERR("The TSCH slotframe is NULL\n");
-    //             return;
-    //         }
-    //         update_pkt_add_cells(pkt, slotframe);
-    //         break;
-    //     case schedule_updater_pkt_type_update_complete:
-    //         other_handle = other_slotframe_handle(slotframe_handle);
-    //         struct tsch_slotframe* old_slotframe = tsch_schedule_get_slotframe_by_handle(other_handle);
-    //         if (old_slotframe == NULL) {
-    //             return;
-    //         }
-    //         tsch_schedule_remove_slotframe(old_slotframe);
-    //         slotframe_handle = other_handle;
-    //         in_update = false;
-    //         break;
-    // }
+static uint8_t update_packets[MAX_UPDATE_PACKET_SIZE * MAX_UPDATE_PACKETS_COUNT];
+static uint8_t npacket = 0;
+static uint16_t slotframe_handle = 1;
+static struct tsch_slotframe* slotframe = NULL;
+
+static void update_use_slotframe() {
+    tsch_schedule_remove_slotframe(slotframe);
+    slotframe = tsch_schedule_add_slotframe(slotframe_handle, TSCH_SCHEDULE_DEFAULT_LENGTH);
+    if (slotframe == NULL) {
+        LOG_ERR("The TSCH slotframe is NULL\n");
+        return;
+    }
+
+    // inserting the new cells into the slotframe
+    int i;
+    for (i = 0; i < npacket; i++) {
+        update_pkt_add_cells(update_packets + (i * MAX_UPDATE_PACKET_SIZE), slotframe);
+    }
+    npacket = 0;
+
+    tsch_schedule_print();
+}
+
+void update_pkt_dispatch(const uint8_t *pkt, uint16_t packet_len) {
+    update_pkt_log(pkt);
+    static struct ctimer timer;
+    switch (update_pkt_type(pkt)) {
+        case schedule_updater_pkt_type_update:
+            if (npacket >= MAX_UPDATE_PACKETS_COUNT) {
+                LOG_ERR("Can't store more update schedule packet. Skipping this packet.\n");
+                return;
+            }
+            if (packet_len > MAX_UPDATE_PACKET_SIZE) {
+                LOG_ERR("The update packet size is too big to be stored. The packet len is %d, and the maximum packet size is %d\n", 
+                        packet_len, MAX_UPDATE_PACKET_SIZE);
+                return;
+            }
+
+            memcpy(update_packets + (npacket * MAX_UPDATE_PACKET_SIZE), pkt, packet_len);
+            npacket++;
+            break;
+        case schedule_updater_pkt_type_update_complete:
+            ctimer_set(&timer, 5 * CLOCK_SECOND, update_use_slotframe, NULL);
+            break;
+    }
 }
 
 void update_pkt_log(const uint8_t *pkt) {

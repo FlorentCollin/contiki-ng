@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"scheduleupdater-server/addrtranslation"
 	"scheduleupdater-server/applications"
 	stats "scheduleupdater-server/stats"
@@ -66,7 +65,6 @@ func (updater *Updater) UpdateClients(schedule *Schedule, rplGraph *applications
 	log.Println("No errors detected while sending complete pkt 🎉")
 	log.Println("Everything is ok don't worry! Be happy 🎉🎉🎉")
 	stats.SimulationStats.WriteToFile("stats")
-	os.Exit(0)
 }
 
 type Serializer = func(clientIP addrtranslation.IPString) ([][]byte, error)

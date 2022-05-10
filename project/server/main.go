@@ -77,9 +77,14 @@ func main() {
 			}
 			time.Sleep(time.Second * 4)
 		}
-		schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
-		updater := scheduleupdater.NewUpdater(server, addrs)
-		updater.UpdateClients(&schedule, &appGraph.Graph)
+		//schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
+		for i := 0; i < 10; i++ {
+			schedule := scheduleAB(i, &appTopology.Topology)
+			updater := scheduleupdater.NewUpdater(server, addrs)
+			updater.UpdateClients(&schedule, &appGraph.Graph)
+			time.Sleep(time.Second * 5)
+		}
+		os.Exit(0)
 	}()
 
 	defer func(server *udpack.UDPAckConn) {
@@ -123,6 +128,68 @@ func generateSchedule(graph *applications.RPLGraph, bandwidthMap *applications.B
 			}
 		}
 	}
+	return schedule
+}
+
+func scheduleAB(iteration int, topology *applications.Topology) scheduleupdater.Schedule {
+	schedule := scheduleupdater.NewSchedule()
+	var a addrtranslation.IPString = "fd00::201:1:1:1"
+	bMac := topology.TopologyMap[a][0]
+	var b addrtranslation.IPString = "fd00::202:2:2:2"
+	aMac := topology.TopologyMap[b][0]
+	var cellABTX scheduleupdater.Cell
+	var cellABRX scheduleupdater.Cell
+	var cellBATX scheduleupdater.Cell
+	var cellBARX scheduleupdater.Cell
+	if iteration%2 == 0 {
+		cellABTX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionTX,
+			TimeSlot:    1,
+			Channel:     1,
+		}
+		cellABRX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionRX,
+			TimeSlot:    2,
+			Channel:     2,
+		}
+
+		cellBATX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionTX,
+			TimeSlot:    2,
+			Channel:     2,
+		}
+		cellBARX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionRX,
+			TimeSlot:    1,
+			Channel:     1,
+		}
+	} else {
+		cellABTX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionTX,
+			TimeSlot:    2,
+			Channel:     2,
+		}
+		cellABRX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionRX,
+			TimeSlot:    1,
+			Channel:     1,
+		}
+
+		cellBATX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionTX,
+			TimeSlot:    1,
+			Channel:     1,
+		}
+		cellBARX = scheduleupdater.Cell{
+			LinkOptions: scheduleupdater.LinkOptionRX,
+			TimeSlot:    2,
+			Channel:     2,
+		}
+	}
+	schedule.AddCell(a, bMac, &cellABTX)
+	schedule.AddCell(a, bMac, &cellABRX)
+	schedule.AddCell(b, aMac, &cellBATX)
+	schedule.AddCell(b, aMac, &cellBARX)
 	return schedule
 }
 

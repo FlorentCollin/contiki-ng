@@ -53,7 +53,7 @@ uint16_t update_pkt_cell_channel(const uint8_t *pkt_raw, uint8_t cell_number);
 
 void update_pkt_add_cells(const uint8_t *pkt_raw, struct tsch_slotframe *sf);
 
-void update_pkt_dispatch(const uint8_t *pkt);
+void update_pkt_dispatch(const uint8_t *pkt, uint16_t packet_len);
 
 void update_pkt_log(const uint8_t *pkt);
 

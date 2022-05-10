@@ -1,7 +1,7 @@
 var FileWriter = Java.type("java.io.FileWriter");
 
 TIMEOUT(18000000, log.testOK());
-var updateSpeedLimit = 1.0;
+var updateSpeedLimit = 1000.0;
 var speedLimit = 1000.0;
 sim.setSpeedLimit(speedLimit);
 
