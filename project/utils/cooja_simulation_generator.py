@@ -2,6 +2,7 @@ import ipaddress
 import copy
 from xml.dom.minidom import parseString
 from sys import argv
+from math import cos, sin, pi
 
 template_csc_file = """\
 <?xml version="1.0" encoding="UTF-8"?>
@@ -245,6 +246,26 @@ def grid_topology_simulation(motes_count: int, first_mote_id: int, server_addr: 
     set_mote_commands(proxy, server_addr, server_port)
     return simulation.toxml()
 
+def star_topology_simulation(motes_count: int, first_mote_id: int, server_addr: str, server_port: int, tunslip_port: int) -> str:
+    simulation = parseString(template_csc_file)
+    client = find_motetype_by_description(simulation, "Client")
+    proxy = find_motetype_by_description(simulation, "Proxy")
+    client_identifier = get_motetype_identifier(client)
+    proxy_identifier = get_motetype_identifier(proxy)
+    transmission_range = find_transmission_range(simulation)
+
+    add_mote(simulation, proxy_identifier, first_mote_id, 0.0, 0.0)
+    for i in range(first_mote_id + 1, first_mote_id + motes_count):
+        t = (2 * i * pi) / (motes_count - 1)
+        x = (transmission_range - 1) * cos(t)
+        y = (transmission_range - 1) * sin(t)
+        add_mote(simulation, client_identifier, i, x, y)
+    set_port(simulation, tunslip_port)
+    server_addr = ipaddress.ip_address(server_addr)
+    set_mote_commands(client, server_addr, server_port)
+    set_mote_commands(proxy, server_addr, server_port)
+    return simulation.toxml()
+
 
 if __name__ == "__main__":
-    print(linear_topology_simulation(int(argv[1]), int(argv[2]), "fd00::1", 3000, 60001))
+    print(star_topology_simulation(int(argv[1]), int(argv[2]), "fd00::1", 3000, 60001))

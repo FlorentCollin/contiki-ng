@@ -6,7 +6,7 @@ from typing import List
 from time import sleep
 from sys import argv
 
-from cooja_simulation_generator import linear_topology_simulation, grid_topology_simulation
+from cooja_simulation_generator import linear_topology_simulation, grid_topology_simulation, star_topology_simulation
 
 CONTIKI_DIR = "/home/florent/dev/contiki-ng"
 
@@ -92,6 +92,8 @@ def launch_simulation(topology: str, motes_count: int, first_mote_id: int, serve
         simulation = linear_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
     elif topology == "grid":
         simulation = grid_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
+    elif topology == "star":
+        simulation = star_topology_simulation(motes_count, first_mote_id, server_addr, server_port, tunslip_port)
     else:
         raise ValueError("Topology argument should be linear or grid")
     host_prefix = "/home/florent/dev"

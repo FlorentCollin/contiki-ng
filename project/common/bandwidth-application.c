@@ -34,7 +34,7 @@ PROCESS_THREAD(bandwidth_application, ev, data) {
     while (1) {
         PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
         send_server(AppTypeBandwidth, encode_bandwidth);
-        etimer_reset(&timer);
+        etimer_set(&timer, 90 * CLOCK_SECOND);
     }
     PROCESS_END();
 }
