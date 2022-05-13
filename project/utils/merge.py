@@ -39,6 +39,10 @@ def timeToInstall(stats):
     # print(data)
     print(nsimulations)
     ax = sns.boxplot(data=data)
+    theoritical_best_times_xs = [i-minClient for i in range(minClient, maxClient + 1)]
+    theoritical_best_times_ys = [i * (i-1) * 0.210 for i in range(minClient, maxClient + 1)]
+    print(theoritical_best_times_ys)
+    sns.scatterplot(ax=ax, x=theoritical_best_times_xs, y=theoritical_best_times_ys)
     clients = list(set(s["nclients"] for s in stats))
     clients.sort()
     ax.set_xticklabels(clients)
@@ -94,7 +98,7 @@ def timeouts2(stats):
         data.append([filename, installation_time, total_timeout, s["nclients"]])
 
     df = pd.DataFrame(data, columns=["filename", "installation_time", "total_timeout", "Nombre de nœuds"])
-    print(df.sort_values(by=["total_timeout", "installation_time"]).to_string())
+    # print(df.sort_values(by=["total_timeout", "installation_time"]).to_string())
 
     ax = sns.scatterplot(data=df, x="total_timeout", y="installation_time", hue="Nombre de nœuds", palette="deep")
     ax.set_xlim(0)
