@@ -130,7 +130,7 @@ func (updater *Updater) serializeAndSend(clientIP addrtranslation.IPString, seri
 		// @incomplete needs refactor
 		udpAddr := &net.UDPAddr{
 			IP:   net.ParseIP(string(clientIP)),
-			Port: 8765,
+			Port: 0xF0B2,
 			Zone: "",
 		}
 		log.Println("Pkt size: ", len(pkt))
@@ -188,11 +188,14 @@ func (pkt *UpdateRequest) Encode() []byte {
 		buffer = append(buffer, v)
 	}
 	buffer = append(buffer, uint8(len(pkt.Cells)))
+    fmt.Println("SIZE BEFORE CELLS: ", len(buffer))
+    fmt.Println("Number of cells: ", len(pkt.Cells))
 	for i := 0; i < len(pkt.Cells); i++ {
 		buffer = append(buffer, uint8(pkt.Cells[i].LinkOptions))
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].TimeSlot)
 		buffer = utils.AppendLittleEndianUint16(buffer, pkt.Cells[i].Channel)
 	}
+    fmt.Println("PKT SIZE TOTAL: ", len(buffer))
 	return buffer
 }
 

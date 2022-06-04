@@ -1,5 +1,7 @@
 package addrtranslation
 
+// This package allows to keep a one-to-one relation between an IP address of a node and its LinkLocalAddr.
+
 import (
 	"net"
 	"strings"
@@ -66,13 +68,9 @@ func NetIPToIPString(addr net.IP) IPString {
 	return IPString(addr.String())
 }
 
-func (ipString IPString) GlobalToLinkLocal() IPString {
-	// TODO: Normally this should not be done, we need a better way to translate link local to global addresses.
-	return IPString(strings.Replace(string(ipString), "fd00", "fe80", 1))
-}
-
 func (ipString IPString) LinkLocalToGlobal() IPString {
-	// TODO: This is a kind of hack since normally we should not be able to get the local address from the link-local addr
-	// This certainly only works in Cooja
+	// Normally this should not be done, we need a better way to translate link local to global addresses.
+	// For simulations though it's totally usable because the translation between an IP address and the LinkLocal
+	// address is deterministic.
 	return IPString(strings.Replace(string(ipString), "fe80", "fd00", 1))
 }

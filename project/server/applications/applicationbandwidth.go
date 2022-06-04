@@ -11,6 +11,9 @@ import (
 
 type BandwidthMap map[addrtranslation.IPString]uint
 
+// ApplicationBandwidth gathers all the bandwidth requirements of the network's nodes.
+// The bandwidth requirement is an integer indicating the number of packets that the node
+// wants to send in a single slotframe.
 type ApplicationBandwidth struct {
 	Bandwith BandwidthMap
 	nClients uint

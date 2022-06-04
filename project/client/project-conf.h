@@ -33,4 +33,6 @@
 
 #define RPL_CALLBACK_PARENT_SWITCH rpl_parent_switch_callback
 
+#define RPL_KEEP_FIRST_PARENT 1
+
 #endif /* PROJECT_CONF_H_ */

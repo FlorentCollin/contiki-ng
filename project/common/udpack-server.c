@@ -17,7 +17,7 @@ static uint8_t ack_sequence_number;
 
 static struct simple_udp_connection udp_conn;
 
-#define UDP_CLIENT_PORT 8765
+#define UDP_CLIENT_PORT 0xF0B2
 #ifndef UDP_SERVER_PORT
 #define UDP_SERVER_PORT 3000
 #endif

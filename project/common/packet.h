@@ -1,6 +1,9 @@
 #ifndef PACKET_H_
 #define PACKET_H_
 
+// Packet contains helper functions to handle packets as described in my master thesis.
+// Packets contains a header with the type and the sequence number of the packet.
+
 #include "contiki.h"
 
 #define SEQUENCE_NUMBER_MAX 0b00111111

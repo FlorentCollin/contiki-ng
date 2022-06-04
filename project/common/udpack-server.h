@@ -25,6 +25,7 @@ void send_server_ack(enum ApplicationType app_type, uint16_t encoder(uint8_t *bu
 // `ApplicationType` enum.
 void send_server(enum ApplicationType app_type, uint16_t encoder(uint8_t *buffer));
 
+// encode_application_type encodes the application type into the first byte of the buffer.
 uint16_t encode_application_type(enum ApplicationType, uint8_t *buffer);
 
 #endif /* UDPACK_SERVER_H_ */

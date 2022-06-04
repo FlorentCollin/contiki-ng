@@ -1,5 +1,10 @@
 package utils
 
+// Logging module that outputs colored strings to the standard output
+// based on a log level.
+// This help especially in the terminal to see errors because the output might
+// be quite fast when a lot of nodes are sending packet to the server.
+
 import "fmt"
 
 type Color struct {

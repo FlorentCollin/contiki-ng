@@ -6,6 +6,8 @@ import (
 	"scheduleupdater-server/addrtranslation"
 )
 
+// ApplicationHelloWorld simple example of an application that prints out
+// the content of a packet when one is received.
 type ApplicationHelloWorld struct{}
 
 func NewApplicationHelloWorld() ApplicationHelloWorld {

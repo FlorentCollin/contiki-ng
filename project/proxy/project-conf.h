@@ -81,4 +81,6 @@
 
 #define LINK_STATS_CONF_PACKET_COUNTERS 1
 
+#define RPL_KEEP_FIRST_PARENT 1
+
 #endif /* PROJECT_CONF_H_ */

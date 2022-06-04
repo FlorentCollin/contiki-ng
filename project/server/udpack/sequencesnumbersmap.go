@@ -7,6 +7,9 @@ import (
 
 const maxSequenceNumber = 0b00111111
 
+// SequenceNumbersMap a helper struct to keep a hash map of expected sequence numbers
+// for each IP address. The maximum value (127) for a sequence number is based on the protocole.
+// This struct is thread safe.
 type SequenceNumbersMap struct {
 	expectedSequenceNumbers map[addrtranslation.IPString]uint8
 	lock                    sync.RWMutex

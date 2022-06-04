@@ -1,5 +1,8 @@
 package udpack
 
+// Packet: implements fonctions and struct based on
+// the protocole defined in my myster thesis.
+
 import (
 	"errors"
 	"fmt"
@@ -23,20 +26,6 @@ func newAckPacket(sequenceNumber uint8) ([]byte, error) {
 
 func newDataPacket(sequenceNumber uint8, packet []byte) ([]byte, error) {
 	header, err := newHeader(PacketTypeData, sequenceNumber)
-	if err != nil {
-		return nil, err
-	}
-	//if len(packet)+1 > 71 {
-		//panic("len(packet) + 1 should not exceed 71 to be contained in a frame IEEE802.15.4e")
-	//}
-	packetWithHeader := make([]byte, len(packet)+1)
-	packetWithHeader[0] = byte(header)
-	copy(packetWithHeader[1:], packet)
-	return packetWithHeader, nil
-}
-
-func newDataNoACKPacket(packet []byte) ([]byte, error) {
-	header, err := newHeader(PacketTypeDataNoACK, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +78,10 @@ func decodeSequenceNumber(header Header) uint8 {
 // RemoveHeaderFromPacket remove the header that contains a PacketType and a SequenceNumber
 // The header is a byte that has the following structure:
 // 0b01 000111
-//   ^ ^^^^^^
-//   | |
-//   | +------------ Sequence Number (last 6 bits)
-//   +-- PacketType (two bits)
+//   ^  ^^^^^^
+//   |  |
+//   |  +------------ Sequence Number (last 6 bits)
+//   +---- PacketType (two bits)
 func RemoveHeaderFromPacket(packet []byte) (Header, []byte) {
 	return Header(packet[0]), packet[1:]
 }

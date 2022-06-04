@@ -39,10 +39,11 @@ def timeToInstall(stats):
     # print(data)
     print(nsimulations)
     ax = sns.boxplot(data=data)
-    theoritical_best_times_xs = [i-minClient for i in range(minClient, maxClient + 1)]
-    theoritical_best_times_ys = [i * (i-1) * 0.210 for i in range(minClient, maxClient + 1)]
-    print(theoritical_best_times_ys)
-    sns.scatterplot(ax=ax, x=theoritical_best_times_xs, y=theoritical_best_times_ys)
+    # theoritical_best_times_xs = [i-minClient for i in range(minClient, maxClient + 1)]
+    # theoritical_best_times_ys = [best_time(i) * 0.210 for i in range(minClient, maxClient + 1)] # linear
+    # theoritical_best_times_ys = [4 * (i - 1) * 0.210 for i in range(minClient, maxClient + 1)] # star
+    # print(theoritical_best_times_ys)
+    # sns.scatterplot(ax=ax, x=theoritical_best_times_xs, y=theoritical_best_times_ys)
     clients = list(set(s["nclients"] for s in stats))
     clients.sort()
     ax.set_xticklabels(clients)
@@ -52,6 +53,10 @@ def timeToInstall(stats):
     ax.set_xlabel("Nombre de nœuds du WSN")
     plt.savefig("installation-time.png")
     plt.close()
+
+def best_time(n: int) -> float:
+    res = sum((3*(i-1) for i in range (2, n)))
+    return (res + 2*n) * 2
 
 
 def timeouts1(stats, nclients=9):

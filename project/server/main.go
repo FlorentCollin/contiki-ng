@@ -1,5 +1,19 @@
 package main
 
+// Server main application.
+// This application waits for a number of nodes to connect to the server.
+// The nodes are responsible to send three information:
+// 1. Their bandwidth need
+// 2. Their neighbors
+// 3. Thei RPL parent
+//
+// When all these three information have been sent to the server,
+// the server generate a new schedule based on a greedy algorithm.
+// This newly generated schedule is then sent to the node based on the protocole
+// described in the master's thesis PDF.
+// As the goal was only to install a new schedule once for the simulation,
+// the server stops when the schedule was correctly sent to the nodes.
+
 import (
 	"errors"
 	"fmt"
@@ -25,17 +39,21 @@ func printHelp() {
 
 func main() {
 	utils.NewLogger(utils.LogLevelInfo, utils.WHITE)
+
 	nClients, firstMoteID, port, timeout, err := parseArgs()
-	stats.SimulationStats.Nclients = nClients
 	if err != nil {
 		fmt.Println(err)
 		printHelp()
 		os.Exit(1)
 	}
+	stats.SimulationStats.Nclients = nClients
+
 	addr := &net.UDPAddr{
 		Port: port,
 		IP:   net.ParseIP("0.0.0.0"),
 	}
+
+	// Start the udp listener
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		log.Panic(err)
@@ -44,10 +62,13 @@ func main() {
 	config := udpack.UDPAckConnSendConfig{
 		MaxRetries:          100,
 		TimesBetweenRetries: 1,
-		Timeout:             time.Duration(time.Duration(timeout) * time.Second),
+		Timeout:             time.Duration(timeout) * time.Second,
 	}
 	server := udpack.NewUDPAckServer(conn, &config)
 	stats.SimulationStats.Timeout = server.Config.Timeout.Seconds()
+
+	// Create the three application, when a node send a packet,
+	// it is correctly dispatch to the application based on the ApplicationType
 	appGraph := applications.NewApplicationGraph(nClients)
 	appBandwidth := applications.NewApplicationBandwidth(nClients)
 	appTopology := applications.NewApplicationTopology(nClients)
@@ -57,9 +78,13 @@ func main() {
 		Subscribe(applications.NewApplicationHelloWorld()).
 		Subscribe(&appTopology)
 
+	// We assume that we know the address of all the nodes in the network.
+	// However, we could also ask the server to keep in memory the last addresses
+	// from which we received a packet.
 	addrs := initializeClientsAddrs(nClients, firstMoteID)
 	go func() {
 		for {
+			// Wait till all applications are ready
 			appGraphReady := appGraph.Ready()
 			appBandwidthReady := appBandwidth.Ready()
 			appTopologyReady := appTopology.Ready()
@@ -77,6 +102,7 @@ func main() {
 			}
 			time.Sleep(time.Second * 4)
 		}
+		// Generate a new schedule and send it to the nodes
 		schedule := generateSchedule(&appGraph.Graph, &appBandwidth.Bandwith, &appTopology.Topology)
 		updater := scheduleupdater.NewUpdater(server, addrs)
 		updater.UpdateClients(&schedule, &appGraph.Graph)
@@ -93,6 +119,8 @@ func main() {
 }
 
 // -- INTERNAL --
+// The functions below are helper to generate a new schedule based on a greedy algorithm.
+// In a real use case, a good centralized scheduler like TASA should be used.
 
 func initializeClientsAddrs(clientCount uint, firstMoteID uint) []addrtranslation.IPString {
 	addrs := make([]addrtranslation.IPString, clientCount)

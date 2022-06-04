@@ -1,5 +1,8 @@
 package stats
 
+// Stats: this module is used to write statistics about a simulation.
+// All the stats are then written in a JSON format in a file.
+
 import (
 	"encoding/json"
 	"log"
@@ -11,6 +14,8 @@ import (
 	"time"
 )
 
+// IncDict hash map that store a number for each IP address that can only
+// increase by one each time. This allows to count a broad number of stats.
 type IncDict struct {
 	IPMap map[addrtranslation.IPString]int `json:"IPMap,omitempty"`
 	lock  sync.RWMutex

@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+// ApplicationTopology gathers the topology of the network. The topology, in this case,
+// is the neighbors of the nodes.
 type ApplicationTopology struct {
 	Topology Topology
 	nClient  uint
@@ -37,6 +39,7 @@ func (app *ApplicationTopology) ProcessPacket(addr *net.UDPAddr, packet []byte) 
 func (app *ApplicationTopology) Ready() bool {
 	return len(app.Topology.TopologyMap) == int(app.nClient)
 }
+
 func decodeTopologyPacket(packet []byte) (*TopologyPacket, error) {
 	const macSize = 8
 	if len(packet)%8 != 0 {

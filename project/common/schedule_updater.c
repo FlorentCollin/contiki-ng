@@ -81,40 +81,40 @@ void update_pkt_add_cells(const uint8_t *pkt, struct tsch_slotframe *sf) {
     }
 }
 
-// static uint16_t other_slotframe_handle(uint16_t current_slotframe_handle) {
-//     /* if current_slotframe_handle == 1 then 2 else 1 */
-//     return (current_slotframe_handle % 2) + 1;
-// }
+static uint16_t other_slotframe_handle(uint16_t current_slotframe_handle) {
+    /* if current_slotframe_handle == 1 then 2 else 1 */
+    return (current_slotframe_handle % 2) + 1;
+}
 
 void update_pkt_dispatch(const uint8_t *pkt) {
     update_pkt_log_type(pkt);
-    // static uint16_t slotframe_handle = 1;
-    // static bool in_update = false;
-    // static struct tsch_slotframe* slotframe = NULL;
-    // uint16_t other_handle;
-    // switch (update_pkt_type(pkt)) {
-    //     case schedule_updater_pkt_type_update:
-    //         if (!in_update) {
-    //             slotframe = tsch_schedule_add_slotframe(slotframe_handle, 21);
-    //             in_update = true;
-    //         }
-    //         if (slotframe == NULL) {
-    //             LOG_ERR("The TSCH slotframe is NULL\n");
-    //             return;
-    //         }
-    //         update_pkt_add_cells(pkt, slotframe);
-    //         break;
-    //     case schedule_updater_pkt_type_update_complete:
-    //         other_handle = other_slotframe_handle(slotframe_handle);
-    //         struct tsch_slotframe* old_slotframe = tsch_schedule_get_slotframe_by_handle(other_handle);
-    //         if (old_slotframe == NULL) {
-    //             return;
-    //         }
-    //         tsch_schedule_remove_slotframe(old_slotframe);
-    //         slotframe_handle = other_handle;
-    //         in_update = false;
-    //         break;
-    // }
+    static uint16_t slotframe_handle = 1;
+    static bool in_update = false;
+    static struct tsch_slotframe* slotframe = NULL;
+    uint16_t other_handle;
+    switch (update_pkt_type(pkt)) {
+        case schedule_updater_pkt_type_update:
+            if (!in_update) {
+                slotframe = tsch_schedule_add_slotframe(slotframe_handle, 21);
+                in_update = true;
+            }
+            if (slotframe == NULL) {
+                LOG_ERR("The TSCH slotframe is NULL\n");
+                return;
+            }
+            update_pkt_add_cells(pkt, slotframe);
+            break;
+        case schedule_updater_pkt_type_update_complete:
+            other_handle = other_slotframe_handle(slotframe_handle);
+            struct tsch_slotframe* old_slotframe = tsch_schedule_get_slotframe_by_handle(other_handle);
+            if (old_slotframe == NULL) {
+                return;
+            }
+            tsch_schedule_remove_slotframe(old_slotframe);
+            slotframe_handle = other_handle;
+            in_update = false;
+            break;
+    }
 }
 
 void update_pkt_log(const uint8_t *pkt) {

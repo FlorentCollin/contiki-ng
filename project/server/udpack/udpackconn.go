@@ -13,7 +13,7 @@ import (
 )
 
 // UDPAckConn handles UDP connections with ACK of packets. Only one UDP packet
-// can be flying at the same time.
+// can be in transit at the same time.
 type UDPAckConn struct {
 	Config                   *UDPAckConnSendConfig
 	conn                     *net.UDPConn
@@ -67,6 +67,8 @@ func (udpAckConn *UDPAckConn) Serve(handler UDPAckServerHandler) error {
 	}
 }
 
+// WriteTo writes a packet to the specified addr and wait for the ACK to be received correctly.
+// This function uses the `Config` struct parameter to control the number of retries and timeout values.
 func (udpAckConn *UDPAckConn) WriteTo(packet []byte, addr *net.UDPAddr) (error, []byte) {
 	addrIP := addrtranslation.AddrToIPString(addr)
 	udpAckConn.lock.Lock()
@@ -140,6 +142,8 @@ func (udpAckConn *UDPAckConn) Close() error {
 	return udpAckConn.conn.Close()
 }
 
+// handlePacket handles a packet received from `addr`. If the packet is an ACK it verified that the expected sequence number
+// is present in the packet. If the packet is a data packet it sends the ACK and gives the packet the `handler` function.
 func (udpAckConn *UDPAckConn) handlePacket(addr *net.UDPAddr, packet []byte, handler UDPAckServerHandler) error {
 	addrIP := addrtranslation.AddrToIPString(addr)
 	stats.SimulationStats.Nreceived.Increment(addrIP)
@@ -201,7 +205,6 @@ func (udpAckConn *UDPAckConn) handleAck(addrIP addrtranslation.IPString, packet 
 		select {
 		case ackChan <- packet:
 			break
-		//case <-time.After(5 * time.Second):
 		default:
 			utils.Log.WarningPrintln("Dropping the ACK because no goroutine is currently listening to ACK channel")
 		}

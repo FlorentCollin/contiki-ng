@@ -1,3 +1,5 @@
+// Script used to save statistics from the simulation to a file.
+
 var FileWriter = Java.type("java.io.FileWriter");
 
 TIMEOUT(18000000, log.testOK());

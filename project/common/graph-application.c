@@ -19,6 +19,7 @@ static uint16_t encode_graph(uint8_t* packet_buffer);
 
 static uip_ipaddr_t* parent_ipaddr = NULL;
 
+// rpl_parent_switch_callback send a new graph packet each time the RPL parent change.
 void rpl_parent_switch_callback(rpl_parent_t *old, rpl_parent_t *new) {
     parent_ipaddr = rpl_parent_get_ipaddr(new);
     if (parent_ipaddr != NULL) {
@@ -51,6 +52,7 @@ PROCESS_THREAD(graph_application, ev, data) {
 
 static uint16_t encode_graph(uint8_t* packet_buffer) {
     LOG_INFO("Encoding the graph...\n");
+    // The graph packet only contains the parent IP address.
     memcpy(packet_buffer, parent_ipaddr, sizeof(uip_ipaddr_t));
     return sizeof(uip_ipaddr_t);
 }

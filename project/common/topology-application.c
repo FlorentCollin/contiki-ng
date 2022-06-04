@@ -39,8 +39,9 @@ static uint16_t encode_topology(uint8_t* packet_buffer) {
     return encode_neighbors(packet_buffer);
 }
 
-/* TODO: This function sends all the neighbor in one packet but this might not work if this node has
-   to many neighbors. This should be refactor to send multiples packets. For testing it's ok though.
+/* This function sends all the neighbor in one packet but this might not work if this node has
+   to many neighbors. This should be refactor to send multiples packets. 
+   For testing and simulations it's ok though.
 */
 static uint16_t encode_neighbors(uint8_t* packet_buffer) {
     uint16_t index = 0;

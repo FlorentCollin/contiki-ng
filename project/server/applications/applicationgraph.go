@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// ApplicationGraph retrieve the RPL graph from the nodes.
 type ApplicationGraph struct {
 	Graph    RPLGraph
 	nClients uint
@@ -41,7 +42,7 @@ func (app *ApplicationGraph) Ready() bool {
 }
 
 func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
-	// This is mostly a hack and should not be done.
+	// This is mostly a hack and should be replaced in a proper environement
 	childIPString := addrtranslation.IPString(graphUpdate.ChildIP.String())
 	parentIPString := addrtranslation.IPString(graphUpdate.ParentIP.String()).LinkLocalToGlobal()
 	if v, in := app.Graph[childIPString]; !in || v.ParentIP != parentIPString {
@@ -54,6 +55,9 @@ func (app *ApplicationGraph) updateGraph(graphUpdate *GraphTopologyUpdate) {
 
 type RPLGraph map[addrtranslation.IPString]*RPLLink
 
+// LeavesToRootOrder returns an ordered list of IP addresses. The list is ordered in a way
+// that the leaves are first and then the following addresses are their ancestors up to the root
+// of the RPL tree.
 func (rplGraph RPLGraph) LeavesToRootOrder() []addrtranslation.IPString {
 	order := make([]addrtranslation.IPString, len(rplGraph)+1)
 	leaves := rplGraph.findLeaves()
@@ -113,7 +117,6 @@ type GraphTopologyUpdate struct {
 }
 
 func decodeGraphUpdateData(addr net.IP, data []byte) GraphTopologyUpdate {
-	// TODO: refactor this part, and don't rely on magic number
 	return GraphTopologyUpdate{
 		ParentIP: data[:16],
 		ChildIP:  addr,
