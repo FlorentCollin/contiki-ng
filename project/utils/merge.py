@@ -36,7 +36,6 @@ def timeToInstall(stats):
         data[n-minClient].append(delta)
     data = list(filter(lambda d: len(d) !=0, data))
     nsimulations = [len(x) for x in data]
-    # print(data)
     print(nsimulations)
     ax = sns.boxplot(data=data)
     # theoritical_best_times_xs = [i-minClient for i in range(minClient, maxClient + 1)]
@@ -44,6 +43,7 @@ def timeToInstall(stats):
     # theoritical_best_times_ys = [4 * (i - 1) * 0.210 for i in range(minClient, maxClient + 1)] # star
     # print(theoritical_best_times_ys)
     # sns.scatterplot(ax=ax, x=theoritical_best_times_xs, y=theoritical_best_times_ys)
+    print(data)
     clients = list(set(s["nclients"] for s in stats))
     clients.sort()
     ax.set_xticklabels(clients)
@@ -53,6 +53,37 @@ def timeToInstall(stats):
     ax.set_xlabel("Nombre de nœuds du WSN")
     plt.savefig("installation-time.png")
     plt.close()
+
+def timeToInstallAll(stats_linear, stats_grid, stats_star):
+    df = []
+    for i, stats in enumerate((stats_linear, stats_grid, stats_star)):
+        stats = list(filter(lambda s: s["nclients"], stats))
+        data = [[] for _ in range(0, 13)]
+        startTimes = [pd.to_datetime(s["scheduleUpdateStart"]) for s in stats]
+        endTimes = [pd.to_datetime(s["scheduleUpdateEnd"]) for s in stats]
+        if i == 0:
+            topology = "linear"
+        if i == 1:
+            topology = "grid"
+        if i == 2:
+            topology = "star"
+
+        nclients = [s["nclients"] for s in stats]
+        data = [(n, (e - s).total_seconds(), topology) for (n, s, e) in zip(nclients, startTimes, endTimes)]
+        df = df + data
+    
+    df = pd.DataFrame(df, columns=["N", "Temps d'installation", "Topologie"])
+    print(df)
+
+    ax = sns.pointplot(data=df, x="N", y="Temps d'installation", hue="Topologie")
+    # ax.set_xticklabels(list(range(2, 13)))
+    ax.set_ylim(0)
+    ax.set_title("Temps(s) pour installer un nouvel ordonnancement")
+    ax.set_ylabel("Temps(s)")
+    ax.set_xlabel("Nombre de nœuds du WSN")
+    plt.savefig("installation-time.png")
+    plt.close()
+
 
 def best_time(n: int) -> float:
     res = sum((3*(i-1) for i in range (2, n)))
@@ -103,7 +134,7 @@ def timeouts2(stats):
         data.append([filename, installation_time, total_timeout, s["nclients"]])
 
     df = pd.DataFrame(data, columns=["filename", "installation_time", "total_timeout", "Nombre de nœuds"])
-    # print(df.sort_values(by=["total_timeout", "installation_time"]).to_string())
+    print(df.sort_values(by=["total_timeout", "installation_time"]).to_string())
 
     ax = sns.scatterplot(data=df, x="total_timeout", y="installation_time", hue="Nombre de nœuds", palette="deep")
     ax.set_xlim(0)
@@ -125,7 +156,11 @@ if __name__ == "__main__":
     mpl.rcParams['figure.dpi'] = 200
     stats = load_files(argv[1:])
     timeToInstall(stats)
-    timeouts1(stats,  nclients=10)
+    # stats_linear = load_files(argv[1].split(" "))
+    # stats_grid = load_files(argv[2].split(" "))
+    # stats_star = load_files(argv[3].split(" "))
+    # timeToInstallAll(stats_linear, stats_grid, stats_star)
+    # timeouts1(stats,  nclients=10)
     timeouts2(stats)
     # merged_stats = merge(argv[1:])
     # ax = sns.boxplot(data=merged_stats["tx"])
